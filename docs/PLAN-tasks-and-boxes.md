@@ -1,6 +1,6 @@
 # Between: Google Tasks sync and priority boxes (plan)
 
-Date: 2026-11-15. Status: planned, not built. Add to the handoff after the answer-box fix.
+Historical design proposal from 2026-11-15, retained to document early trade-offs. This is not the current implementation or an operational checklist. The completed release uses one app-managed `Between · Today` list, leaf-task scheduling, and quiet Someday filing. See [current status](ROADMAP-STATUS.md) and the [README](../README.md); do not execute the old setup steps below as publication work.
 
 ## Why
 Tasks should show up every day in Google Calendar (Google Tasks side panel), sorted into boxes by urgency and importance. Things with no due date should still get done when there's spare time.

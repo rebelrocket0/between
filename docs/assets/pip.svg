@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-labelledby="title">
+  <title id="title">Pip, Between’s original companion</title>
+          <ellipse cx="60" cy="112" rx="34" ry="5" fill="#3b3127" opacity="0.12"/>
+          <path d="M60 18 C 42 18 24 34 24 62 C 24 92 40 104 60 104 C 80 104 96 92 96 62 C 96 34 78 18 60 18 Z" fill="#cfe6d6" stroke="#3b3127" stroke-width="3"/>
+          <path d="M60 18 C 58 8 66 2 74 4 C 70 12 68 16 60 18 Z" fill="#7fb095" stroke="#3b3127" stroke-width="2.5" stroke-linejoin="round"/>
+          <circle cx="47" cy="58" r="4.5" fill="#3b3127"/>
+          <circle cx="73" cy="58" r="4.5" fill="#3b3127"/>
+          <circle cx="48.5" cy="56.5" r="1.4" fill="#fff"/>
+          <circle cx="74.5" cy="56.5" r="1.4" fill="#fff"/>
+          <ellipse cx="40" cy="70" rx="5" ry="3" fill="#f2a58a" opacity="0.8"/>
+          <ellipse cx="80" cy="70" rx="5" ry="3" fill="#f2a58a" opacity="0.8"/>
+          <path d="M53 72 Q 60 78 67 72" fill="none" stroke="#3b3127" stroke-width="2.5" stroke-linecap="round"/>
+
+</svg>

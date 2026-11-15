@@ -1,4 +1,8 @@
-# Between — two-minute hackathon demo
+# Between — official demo and rehearsal script
+
+**[Watch the submitted demo](https://www.youtube.com/watch?v=zYgGRX92xEA).** Pip’s demo narration uses **ElevenLabs**, which is not an application runtime dependency.
+
+The script below is a retained rehearsal aid, not a verbatim transcript of the submitted video. This documentation was updated after submission.
 
 ## The story
 
@@ -14,7 +18,7 @@ This is a rehearsal script, not a record of a completed demo. Read the narration
 - Rehearse the capture below once with permission: it writes real tasks and can sync to Google. Do not resubmit repeatedly or delete rehearsal data without approval.
 - Check that there is enough actual available time for the demo tasks to receive sessions. A new task does not necessarily fit today; never imply that it does if it is unplaced.
 - Gemini may infer an estimate rather than ask a question. Rehearse the ambiguous report task; if no question appears, use an existing owner-approved demo question and say it came from an earlier capture. Do not script a guaranteed model response.
-- Capture sync is attempted immediately on the Gemini path. Skip changes the dashboard plan but does not immediately push Google updates; background sync runs every 30 minutes during active hours. If needed, use an approved authenticated sync in rehearsal, or a clearly labeled prerecorded segment. Do not promise instant external updates after every action.
+- Capture and progress changes queue an asynchronous Google refresh; background sync also runs every 30 minutes during active hours. If needed, use an approved authenticated sync in rehearsal, or a clearly labeled prerecorded segment. Do not promise instant external updates after every action.
 
 ## Run of show
 
@@ -23,7 +27,7 @@ This is a rehearsal script, not a record of a completed demo. Read the narration
 | 0:00–0:15 | Show Pip and the dashboard's available-minutes input. | “It's the gap before my next class. I have time, but my head is full of unfinished things. Choosing where to start can use up the whole break. I built Between to make that first step easier.” |
 | 0:15–0:35 | Run the iPhone Shortcut and dictate the text below. Switch to the dashboard after the response. | **Dictate:** “I need to read chapter four for twenty minutes by tomorrow, email my professor for ten minutes today, and work on my final report. I'm not sure how much time the report needs.” Then: “I can say it as it comes to me. I don't have to sort it into a form.” |
 | 0:35–0:50 | Show the resulting tasks and their estimates. Answer the actual report follow-up, if shown, with “about two hours.” | “Gemini turns that thought into separate tasks. Pip asks for a missing detail when it matters for the plan. Here, I can give the report a realistic estimate.” |
-| 0:50–1:10 | Set “I have” to 20 minutes. Show Fits your window and today's actual sessions, then the demo calendar. | “Now I have twenty minutes. Between checks what fits, and plans work around my commitments. The next two weeks give bigger tasks room before their deadlines. Python checks the proposed sessions against my free time.” |
+| 0:50–1:10 | Set “I have” to 20 minutes. Show Fits your window and today's actual sessions, then the demo calendar. | “Now I have twenty minutes. Between checks what fits, and plans work around my commitments. The next two weeks give bigger tasks room before their deadlines. Python schedules the sessions within my free time and the planning constraints.” |
 | 1:10–1:25 | Show an actual “Between:” block and the “Between · Today” list after successful sync. | “The plan comes back into Google Calendar and Google Tasks, where I already look. These are the sessions that actually fit, rather than another list I have to schedule myself.” |
 | 1:25–1:40 | Return to Between. Choose a demo task that is in today's plan and tap Not today. Wait for the refreshed plan. | “If today changes, I can say ‘Not today.’ The task leaves today's plan and becomes eligible again tomorrow. Between keeps the work without turning the change into a failure.” |
 | 1:40–1:55 | Open Log time on a different demo task with a known estimate. Enter a truthful completed rehearsal amount, or clearly label a simulated example. Show logged and remaining minutes. | “When I work, I log the time. Between records that progress and shows what's left. It doesn't claim to have learned my habits from a single session.” |
@@ -35,15 +39,15 @@ If a request takes too long, switch to a labeled recording from a successful reh
 
 If no suitable question or today-session exists, use a verified earlier example and identify it as such. Don't invent a task, a reason, a deadline, or an external sync result in narration.
 
-Logging records progress and updates remaining minutes in the dashboard/window suggestions. The two-week scheduler currently reads the full task estimate, and automatic personalized estimates are future work. Do not say “it learns my pace” or claim the calendar instantly shrinks after logging.
+Logging records progress and reduces remaining work in both window suggestions and the two-week scheduler. Automatic personalized estimate changes remain future work. Do not say “it learns my pace” or claim the calendar instantly shrinks after logging.
 
-## Recording and screenshot placeholders
+## Recording and optional screenshots
 
 - [ ] Dashboard screenshot: fictional tasks, Pip, and a free-window suggestion.
 - [ ] Capture/question screenshot: an actual model result with private details removed.
 - [ ] Calendar/Tasks screenshot: generic commitments and verified Between output.
-- [ ] Two-minute recording link: pending.
-- [ ] Timed rehearsal: pending; check all seven feature beats and service latency.
-- [ ] Submission disclosure: owner to confirm AI tools used and applicable hackathon rules.
+- [x] Official submitted recording: https://www.youtube.com/watch?v=zYgGRX92xEA
+- Future rehearsal: check each demonstrated feature and actual service latency.
+- Keep tool credits and any future submission disclosures accurate; this script does not establish compliance with event rules.
 
 Before sharing, watch the whole recording for tokens, private calendar information, browser account details, notifications, and accidental personal content. Recordings are evidence only after the demonstrated behavior is observed.

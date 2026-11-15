@@ -1,14 +1,14 @@
 # Between — UI polish backlog
 
-The earlier referenced polish file was not present during the Phase 1 review. This backlog records the owner's current requirements; it does not claim to preserve an earlier list or mark any item complete.
+Future interface and accessibility opportunities after the submitted release. This list does not claim a completed accessibility audit or authorize new work. Ask Pip and next-step presentation already exist; the items below concern further refinement.
 
-Keep the existing warm, cozy, playful identity and Pip's original artwork. Work on this phase after the earlier roadmap milestones and owner approval.
+Keep the existing warm, cozy, playful identity and Pip's original artwork. Undertake further runtime changes only when a new task authorizes them.
 
 - Pip expressions and gentle animations, with reduced-motion support.
 - Mobile layout, tap targets, readable questions, and clear next-step presentation.
 - Loading and empty states that help the student start without guilt.
 - Clear distinctions between syncing, offline access, authentication failure, and rendering errors.
-- Minimal Ask Pip input and speech bubble when that feature is approved; keep the focus on actionable work.
+- Refine the existing Ask Pip input and speech bubble while keeping the focus on actionable work.
 - Accessible labels, keyboard focus, status announcements, contrast, and error recovery.
 - Estimate editing and understandable logged/remaining time.
 - Regression checks for JavaScript/HTML references, including question elements.

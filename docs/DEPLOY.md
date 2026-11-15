@@ -1,6 +1,6 @@
 # Deploying Between
 
-This guide describes the existing EC2 + Docker Compose + Caddy deployment. It uses placeholders, not the owner's host, IP address, region, or SSH key location. No deployment was performed for the Phase 1 documentation milestone.
+This guide describes the existing EC2 + Docker Compose + Caddy deployment. It uses placeholders, not the owner's host, IP address, region, or SSH key location. The developer confirms the hosted application is working. The repository publication updated documentation only and did not execute deployment commands.
 
 The hosted server is the single source of truth. Keep the production Mac server stopped. Do not create billable resources, change cloud settings, replace hosted data, or deploy without the owner's approval.
 
@@ -45,13 +45,13 @@ deploy/hosted-link.sh shortcut
 
 Open the dashboard link once per trusted browser. Paste the Shortcut link into its POST action, using JSON `{text: Dictated Text, source: "phone"}` and `Content-Type: application/json`. Never show the URL action or clipboard while recording.
 
-The host previously had no phone-token file. Manual initialization restored access, and the owner then verified remote iPhone capture. The permanent fix remains pending:
+For a newly provisioned host, confirm the persisted phone token exists before using these helpers. Fresh-host safeguards remain limited:
 
 - `main()` initializes the database but does not ensure the token exists.
 - Authentication short-circuits when a request supplies no token. An unauthenticated health request returns 401 without calling `get_or_create_phone_token()`.
 - The link helper relies on that health request to create the file, then reads it remotely. Its remote `printf` can still exit successfully after `cat` fails, yielding an empty-token link and a misleading clipboard message.
 
-A 401 proves the API requires authentication; it does **not** prove that the token file exists. Do not repeatedly rotate a working token to diagnose this. Rotation invalidates all existing browser and Shortcut links. Follow-up work should ensure initialization at startup, validate the persisted token before copying a link, fail without touching the clipboard on error, and test persistence and concurrent initialization. Phase 1 documents this path without changing production authentication.
+A 401 proves the API requires authentication; it does **not** prove that the token file exists. Do not repeatedly rotate a working token to diagnose this. Rotation invalidates all existing browser and Shortcut links. Follow-up work should ensure initialization at startup, validate the persisted token before copying a link, fail without touching the clipboard on error, and test persistence and concurrent initialization. This documentation describes the limitation without changing production authentication.
 
 ## Verification after an approved deployment
 
@@ -74,7 +74,7 @@ Then verify manually:
 
 These actions create or modify real data. Use owner-approved demo tasks and never replace the database for a rehearsal. Delete nothing without approval.
 
-For a failure, inspect service status over SSH. Treat application logs as sensitive: request logging has not been fully audited for token-bearing paths. Do not paste raw logs into shared channels.
+For a failure, inspect service status over SSH. Request logging now omits URLs and bodies, with regression coverage for token-bearing paths. Treat other application and connector error output as potentially sensitive. Do not paste raw logs into shared channels.
 
 ## Provisioning another host
 

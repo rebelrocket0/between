@@ -1,37 +1,27 @@
-# Between — current handoff (2026-11-15)
+# Between — current handoff
 
-Read `AGENTS.md`, then this file and `docs/ROADMAP-STATUS.md`. The owner's newest nine-phase roadmap supersedes the older build order. `docs/HANDOFF.md` is a historical checkpoint; its local-server, phone-setup, hosting, version, and test-count statements are stale. `HANDOFF-FULL.md` is a private untracked reference and must remain untracked.
+## Submission and repository status
 
-## Current operational state
+Between has been submitted to **SunHacks 2026**. The developer confirms the hosted application is working. Implementation preservation and portfolio documentation are post-submission repository work; commit dates have not been backdated.
 
-- The AWS-hosted server is the single source of truth. The owner reports working HTTPS, dashboard, Gemini capture, Calendar/Tasks sync, Canvas calendar import, follow-up questions, and remote iPhone dictation capture.
-- Do not start a competing Mac server connected to production Google integrations. Tests use temporary data and mocked services.
-- Dashboard/question guards and PWA asset/cache v5 are committed in `4ded95f`. At Phase 1 start, local and remote `main` matched `6bd613b`, the README story update.
-- Never print or commit secrets, task data, authenticated links, private infrastructure details, or AI co-author trailers. Use `/usr/bin/python3` on this Mac.
+The completed implementation is preserved separately from the documentation update. See [README](../README.md), [feature status](ROADMAP-STATUS.md), and [release validation](RELEASE-REVIEW.md). `HANDOFF-FULL.md` is private and ignored by Git, Docker, and deployment source transfer.
 
-## Phase 1 milestone approved
+## Current implementation
 
-Updated README: motivation, student story, current features, architecture, stack, Gemini's actual role, isolated local development, deployment boundaries, privacy, roadmap, and explicit screenshot/demo placeholders.
+- Typed and iPhone Shortcut/dictation capture, shared hosted state, retry receipts, and clarification questions.
+- Smart Canvas titles/types/estimates with provenance, stable imports, and preserved edits/progress.
+- Persistent ordered steps for eligible new large tasks, leaf-only execution, and parent progress aggregation.
+- Conservative normalized-title duplicates, source identity checks, quiet Someday filing and activation.
+- Read-only Ask Pip, deterministic scheduling, supported explanation facts, and evidence-gated observations with accept/dismiss state.
+- Google Calendar commitment filtering, Between work blocks, Google Tasks output, queued progress refreshes, and scheduled synchronization.
+- Additive SQLite migrations, v6 frontend assets/cache source, temporary-data tests, and request-log URL/body redaction.
 
-New `docs/DEMO.md`: a timed two-minute story covering phone capture, structured tasks, a real follow-up, gaps around commitments, Google outputs, skip, and time logging. Rehearsal and recording are still pending; no fabricated screenshots or live results.
+## Validation and boundaries
 
-`docs/DEPLOY.md` now uses placeholders and separates approved existing-host updates from provisioning. It documents the token incident and data-copy prohibition. `docs/POLISH.md` was missing; a labeled backlog was created from the latest owner requirements.
+261 backend tests and 8 synthetic frontend runtime checks passed, with zero failures. Python/JavaScript syntax, shell syntax, and migration/persistence checks passed. Backend validation blocked external connections. Browser coverage, offline PWA operation, and performance benchmarks are not established by these checks.
 
-Frontend contract checks and token failure-case tests were added without changing runtime code or frontend assets. Validation: all 166 tests passed (157 existing + 9 new) with external HTTP and socket access blocked. Whitespace and local Markdown-link checks also passed. Browser/phone rehearsal remains pending.
+The hosted instance is the source of truth. Do not start a local instance using production credentials, change the database, rotate the working device token, deploy, restart AWS, or create billable infrastructure without an explicit task authorizing that work. Local development uses an independent clean checkout and test account.
 
-## Important implementation gaps
+The prototype remains single-user. Gemini Live and automatic behavioral rescheduling are absent. Service-worker registration is not established. Fresh-host token initialization/link validation and cross-service sync recovery remain documented limitations; do not casually rotate a valid token to investigate them.
 
-- Gemini currently chooses today's sessions subject to validation; Phase 6's explanation-only role is not implemented.
-- Canvas import uses a default 45-minute estimate, overwrites titles on repeat sync, and lacks original-title metadata/user-edit provenance.
-- No parent/subtask model, semantic merging, Ask Pip, supported behavioral insights, or Gemini Live implementation.
-- Skip updates the dashboard plan; external sync follows separately. Logged time reduces dashboard/window remaining work but the two-week planner still reads full estimates. Do not claim automatic learning or instant calendar adjustment.
-- Missing hosted token was manually initialized, per owner report. Startup does not ensure it exists; unauthenticated health requests short-circuit before creation, defeating the link helper's assumption. A separate startup/link-generation safeguard and request-log redaction need investigation. Do not rotate a working token casually.
-- The v5 service worker exists, but registration was not found; offline behavior is unverified.
-
-Detailed source reconciliation and follow-up acceptance criteria: `docs/ROADMAP-STATUS.md`.
-
-## Next action
-
-The owner approved Phase 1 commit/push and proceeding to Phase 2. Implement Smart Canvas processing incrementally, then wait for approval before deployment. No Phase 1 deployment is needed. Do not use `--with-data` without explicit approval to replace hosted data.
-
-Planning hours, minimum session length, and fixed-versus-fillable commitments remain owner decisions. Keep busy-event titles out of Gemini context. Do not make the repo public or claim hackathon disclosure compliance without a separate review.
+Never print, commit, or paste credentials, tokens, personal task data, private links, SSH keys, or private infrastructure identifiers. Use `/usr/bin/python3` on the development Mac. Commits have no AI co-author trailers.

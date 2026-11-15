@@ -1,68 +1,42 @@
-# Phone Setup (home Wi-Fi)
+# Phone capture setup
 
-Your phone sends a brain-dump to Between on your Mac. Both must be on the same Wi-Fi.
-Never paste the Shortcut URL into chats or files: it holds your phone token.
+The working hosted flow uses **iPhone Shortcuts → dictation or typed input → authenticated HTTPS capture**. Between receives text, not microphone audio. Use the existing authorized Shortcut for the live application; preserve its working token.
 
-## 1. Start Between for the phone (on the Mac)
+## Hosted Shortcut
+
+The private Shortcut URL is obtained through `deploy/hosted-link.sh shortcut` by an authorized operator after confirming the host's persisted token exists. That helper copies the URL to the clipboard; do not expose the URL action, clipboard, or token in screenshots or recordings. The helper has a known fresh-host validation limitation described in [DEPLOY.md](DEPLOY.md).
+
+For a dictation Shortcut:
+
+1. Add **Dictate Text**.
+2. Add **Get Contents of URL** with the authorized HTTPS capture URL.
+3. Set **Method** to **POST** and **Request Body** to **JSON**.
+4. Add `text` using the **Dictated Text** variable, and `source` with the value `phone`.
+5. Set **Content-Type** to **application/json**; remove empty header rows.
+6. Confirm the result appears in the authenticated dashboard. A local notification alone does not prove delivery.
+
+For typing, replace Dictate Text with **Ask for Input** and use its Provided Input variable. A Type/Dictate menu needs the correct URL and JSON in both branches.
+
+A keyless repeated capture has a bounded ten-minute retry receipt. The dashboard supplies an explicit retry key. These mechanisms reduce accidental duplicate submission; conservative task matching is a separate check.
+
+## Independent local development
+
+Use a clean checkout without production credentials or data. Both devices must share a network that permits device-to-device traffic. In that isolated checkout:
 
 ```bash
-cd ~/projects/between
 scripts/start-phone.sh
+/usr/bin/python3 scripts/phone_link.py
 ```
 
-This listens on your Wi-Fi (not just this Mac). Requests from other devices need the phone token.
-If macOS asks "Allow incoming connections?" for Python, click **Allow**.
+The first command runs the local development server on the network. The second copies its current private capture URL. Its host uses the Mac's discovered Bonjour name. Use `--ip` only if local name resolution fails.
 
-## 2. Copy the Shortcut URL (on the Mac, in your own Terminal)
+Do not use `--new-token` merely to copy a link: it rotates authentication and invalidates existing links. A wrong token requires checking the intended environment and saved link before deciding whether rotation is appropriate.
 
-```bash
-/usr/bin/python3 scripts/phone_link.py --new-token
-```
+## Troubleshooting
 
-Run this in your own Terminal: it rotates the stale token mentioned in the handoff and copies the new URL to the clipboard. Any old Shortcut URL stops working; the running server reads the new token without a restart.
+- **Phone token required:** verify the saved link belongs to the intended host and still carries its valid token.
+- **Empty capture:** check that `text` points to the selected branch's input variable rather than an empty literal.
+- **Local timeout:** confirm the isolated server is running, the Mac is awake, and the network permits local connections.
+- **Delayed display:** refresh the dashboard; cross-device changes are polled rather than pushed.
 
-The URL uses `http://<your-mac-local-hostname>.local:8765/api/capture/<token>`. The helper finds the Mac's actual Bonjour name; don't assume it is `mac.local`. Its terminal output masks the token. Never paste the URL or a screenshot of it into chat.
-
-After this one rotation, omit `--new-token` whenever you only need to copy the current URL again.
-
-## 3. Make the Shortcut (on the iPhone, Shortcuts app)
-
-If you already have **local brain capture** with a Type/Dictate menu, keep it:
-
-1. Paste the newly copied URL into **both** Get Contents of URL actions, replacing the entire old URL.
-2. In each action, set **Method** to **POST** and **Request Body** to **JSON**.
-3. Keep `text` connected to the branch's **Provided Input** or **Dictated Text** variable, and `source` set to `phone`.
-4. Keep the header **Content-Type: application/json** and remove the empty header row.
-
-For a new dictation-only shortcut:
-
-1. Tap **+** to make a new shortcut. Name it **Between**.
-2. Add **Dictate Text**.
-3. Add **Get Contents of URL**.
-4. Tap the URL field and paste the Shortcut URL (Universal Clipboard), or AirDrop it to yourself.
-5. Tap the arrow next to the URL. Set **Method** to **POST**.
-6. Set **Request Body** to **JSON**. Add two text fields:
-   - `text` → tap and pick the **Dictated Text** variable
-   - `source` → type `phone`
-7. Set the header **Content-Type** to **application/json**. Remove any empty header row.
-8. Add **Show Notification** (optional). Confirm success on the dashboard; a notification alone does not prove capture succeeded.
-
-## 4. Try it
-
-With both devices on home Wi-Fi, run the shortcut → **Dictate** → say "read chapter 4 for 20 minutes". Reload the dashboard on the Mac and confirm the task appears under Your to-dos. Then try the **Type** branch to verify its separate URL action too.
-
-This creates real tasks and may trigger the normal Google sync. The phone step is complete only after the captures appear on the dashboard; Mac-side automated tests do not verify iPhone connectivity.
-
-## Typing instead of talking
-
-Replace **Dictate Text** with **Ask for Input** (type: Text) and pick **Provided Input** for `text`.
-
-## If it doesn't work
-
-- "Phone token required": the URL's token is old. Run step 2 again and paste the new URL.
-- Nothing happens / times out: check that both devices are on the same Wi-Fi, the Mac is awake, and the server is running with `start-phone.sh` on port 8765.
-- If the `.local` name cannot be reached, run `/usr/bin/python3 scripts/phone_link.py --ip` and replace the URL in both actions. Some campus or guest Wi-Fi networks block device-to-device access; use home Wi-Fi for this test. An IP-based URL needs updating when the Mac's address changes.
-
-## Away from home
-
-Later: the hosted app with HTTPS. Deployment is deferred until the user authorizes AWS setup.
+Phone tests create real captures in whichever environment the URL targets. Use intentional demo text, and do not delete existing data as part of setup.
