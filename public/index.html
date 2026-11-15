@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Between</title>
+  <meta name="theme-color" content="#2f5d50">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="/styles.css?v=3">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="wordmark">Between</span>
+      <span class="tagline">Turn the gaps in your day into done things.</span>
+    </div>
+    <span id="status" class="status">Connecting…</span>
+  </header>
+
+  <main class="layout">
+    <section class="card room" aria-labelledby="fits-title">
+      <div class="pip" aria-hidden="true">
+        <svg viewBox="0 0 120 120" role="img">
+          <ellipse cx="60" cy="112" rx="34" ry="5" fill="#3b3127" opacity="0.12"/>
+          <path d="M60 18 C 42 18 24 34 24 62 C 24 92 40 104 60 104 C 80 104 96 92 96 62 C 96 34 78 18 60 18 Z" fill="#cfe6d6" stroke="#3b3127" stroke-width="3"/>
+          <path d="M60 18 C 58 8 66 2 74 4 C 70 12 68 16 60 18 Z" fill="#7fb095" stroke="#3b3127" stroke-width="2.5" stroke-linejoin="round"/>
+          <circle cx="47" cy="58" r="4.5" fill="#3b3127"/>
+          <circle cx="73" cy="58" r="4.5" fill="#3b3127"/>
+          <circle cx="48.5" cy="56.5" r="1.4" fill="#fff"/>
+          <circle cx="74.5" cy="56.5" r="1.4" fill="#fff"/>
+          <ellipse cx="40" cy="70" rx="5" ry="3" fill="#f2a58a" opacity="0.8"/>
+          <ellipse cx="80" cy="70" rx="5" ry="3" fill="#f2a58a" opacity="0.8"/>
+          <path d="M53 72 Q 60 78 67 72" fill="none" stroke="#3b3127" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+
+      <div class="room-copy">
+        <p class="eyebrow">Pip says</p>
+        <h1 class="hello">Got a little gap? Let's use it.</h1>
+        <label class="window">
+          <span>I have</span>
+          <input id="minutes" type="number" min="1" max="480" value="15" inputmode="numeric" aria-label="Minutes free">
+          <span>minutes</span>
+        </label>
+        <div class="chips" role="group" aria-label="Quick picks">
+          <button type="button" class="chip" data-minutes="5">5</button>
+          <button type="button" class="chip" data-minutes="15">15</button>
+          <button type="button" class="chip" data-minutes="30">30</button>
+          <button type="button" class="chip" data-minutes="60">60</button>
+        </div>
+        <p id="calendar-note" class="muted small"></p>
+      </div>
+    </section>
+
+    <section class="card" aria-labelledby="today-title">
+      <div class="section-head">
+        <h2 id="today-title">Today's plan</h2>
+        <span id="today-note" class="muted small"></span>
+      </div>
+      <ul id="today" class="list"></ul>
+      <p id="today-empty" class="muted hidden">No sessions planned for today. Add a task or free up some time.</p>
+    </section>
+
+    <section class="card" aria-labelledby="fits-title">
+      <div class="section-head">
+        <h2 id="fits-title">Fits your window</h2>
+      </div>
+      <ul id="fits" class="list"></ul>
+      <p id="fits-empty" class="muted hidden">Nothing fits that window yet. Try a longer gap, or give a task a time estimate.</p>
+    </section>
+
+    <section class="stats" aria-label="Summary">
+      <div class="stat stat-open"><span class="num" id="stat-open">0</span><span>open</span></div>
+      <div class="stat stat-fits"><span class="num" id="stat-fits">0</span><span>fit now</span></div>
+      <div class="stat stat-review"><span class="num" id="stat-review">0</span><span>to review</span></div>
+      <div class="stat stat-done"><span class="num" id="stat-done">0</span><span>done</span></div>
+    </section>
+
+    <section class="card note-card" aria-labelledby="capture-title">
+      <div class="section-head">
+        <h2 id="capture-title">Drop a thought</h2>
+        <span class="muted small">Type it like you'd say it</span>
+      </div>
+      <form id="capture-form" class="capture">
+        <textarea id="capture-text" rows="3" placeholder="Email Prof K, finish the problem set, read chapter 3 for 20 min"></textarea>
+        <div class="row">
+          <select id="capture-source" aria-label="Capture source">
+            <option value="manual">Typed</option>
+            <option value="voice">Voice transcript</option>
+          </select>
+          <button type="submit" class="primary">Add to Pip's list</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="card" aria-labelledby="tasks-title">
+      <div class="section-head">
+        <h2 id="tasks-title">Your to-dos</h2>
+      </div>
+      <ul id="tasks" class="list"></ul>
+      <p id="tasks-empty" class="muted hidden">Nothing open. Drop a thought above and Pip will sort it out.</p>
+    </section>
+
+    <section class="card" id="review-card" aria-labelledby="review-title">
+      <div class="section-head">
+        <h2 id="review-title">Pip isn't sure about these</h2>
+        <span class="muted small">Make them a task, a note, or let them go</span>
+      </div>
+      <ul id="review" class="list"></ul>
+      <p id="review-empty" class="muted hidden">Nothing to check. Pip got it all.</p>
+    </section>
+
+    <p id="toast" class="toast hidden" role="status"></p>
+  </main>
+
+  <script src="/app.js?v=3"></script>
+</body>
+</html>

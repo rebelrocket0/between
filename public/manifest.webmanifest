@@ -1,0 +1,9 @@
+{
+  "name": "Between",
+  "short_name": "Between",
+  "description": "Turn the gaps in your day into done things.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f4f5ef",
+  "theme_color": "#1f4d45"
+}

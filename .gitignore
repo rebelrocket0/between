@@ -1,0 +1,25 @@
+# Secrets
+.env
+.env.*
+!.env.example
+client_secret*.json
+*client_secret*.json
+credentials.json
+token.json
+
+# Local data (personal calendar, tasks, phone token)
+data/*.sqlite
+data/*.sqlite-*
+data/phone_capture_token
+data/phone-token
+data/phone*token*
+data/schedule_snapshot.txt
+data/audio/
+data/exports/
+
+# Python
+__pycache__/
+*.pyc
+
+# macOS
+.DS_Store
