@@ -1,12 +1,12 @@
-# Life Brain
+# Between
 
 A local-first personal capture system. Version 0.1 stores text captures, routes them into tasks or notes, keeps a review queue, and shows a local dashboard.
 
 ## Start It
 
 ```bash
-cd /Users/rebelrocket/Documents/Codex/2026-09-06/can-you-please/work/life-brain
-python3 server.py
+cd ~/projects/between
+/usr/bin/python3 server.py
 ```
 
 Then open the URL printed by the server, usually:
