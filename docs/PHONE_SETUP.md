@@ -1,60 +1,52 @@
-# Phone Setup
+# Phone Setup (home Wi-Fi)
 
-## Same Wi-Fi
+Your phone sends a brain-dump to Between on your Mac. Both must be on the same Wi-Fi.
+Never paste the Shortcut URL into chats or files: it holds your phone token.
 
-Start the app so your phone can reach your Mac:
+## 1. Start Between for the phone (on the Mac)
 
 ```bash
-cd /Users/rebelrocket/Documents/Codex/2026-09-06/can-you-please/work/life-brain
-python3 server.py --host 0.0.0.0
+cd ~/projects/between
+scripts/start-phone.sh
 ```
 
-Open the app on your Mac and go to `Phone`. Copy one of the phone URLs, then open it on your iPhone while both devices are on the same Wi-Fi.
+This listens on your Wi-Fi (not just this Mac). Requests from other devices need the phone token.
+If macOS asks "Allow incoming connections?" for Python, click **Allow**.
 
-The URL contains a local phone token. After the first open, the phone stores the token in the browser and sends it with local app requests.
+## 2. Copy the Shortcut URL (on the Mac, in your own Terminal)
 
-## Apple Shortcut Capture
-
-Create a voice-only shortcut with this shape:
-
-1. `Dictate Text` or `Ask for Input`.
-2. `Get Contents of URL`.
-3. Set method to `POST`.
-4. Set request body to JSON.
-5. Send:
-
-```json
-{
-  "text": "Provided Input",
-  "source": "phone"
-}
+```bash
+/usr/bin/python3 scripts/phone_link.py
 ```
 
-Use the Shortcut endpoint from the Phone tab. It already includes the token and looks like:
+It copies `http://<your-mac-ip>:8765/api/capture/<token>` to the clipboard and shows only the first 3 characters of the token.
+Add `--new-token` to make a fresh token (any old Shortcut URL stops working).
 
-```text
-/api/capture/your-token
-```
+## 3. Make the Shortcut (on the iPhone, Shortcuts app)
 
-## Type Or Dictate
+1. Tap **+** to make a new shortcut. Name it **Between**.
+2. Add **Dictate Text**.
+3. Add **Get Contents of URL**.
+4. Tap the URL field and paste the Shortcut URL (Universal Clipboard), or AirDrop it to yourself.
+5. Tap the arrow next to the URL. Set **Method** to **POST**.
+6. Set **Request Body** to **JSON**. Add two text fields:
+   - `text` → tap and pick the **Dictated Text** variable
+   - `source` → type `phone`
+7. Add **Show Notification** (optional) so you see that it worked.
 
-To use one shortcut for both typing and voice:
+## 4. Try it
 
-1. Add `Choose from Menu`.
-2. Add two choices: `Type` and `Dictate`.
-3. Under `Type`, add `Ask for Input` with input type `Text`.
-4. Under `Dictate`, add `Dictate Text`.
-5. In each branch, set a variable named `Brain Text` to the typed or dictated result.
-6. After the menu, add `Get Contents of URL`.
-7. Use the same JSON body:
+Run the shortcut, say a task (for example "finish the essay outline by Friday, about an hour"), and check the dashboard on the Mac: it shows up under Your to-dos.
 
-```json
-{
-  "text": "Brain Text",
-  "source": "phone"
-}
-```
+## Typing instead of talking
 
-## Away From Home
+Replace **Dictate Text** with **Ask for Input** (type: Text) and pick **Provided Input** for `text`.
 
-Use Tailscale later if you want phone capture when your phone is not on the same Wi-Fi as your Mac.
+## If it doesn't work
+
+- "Phone token required": the URL's token is old. Run step 2 again and paste the new URL.
+- Nothing happens / times out: the phone isn't on the same Wi-Fi, the server isn't running with `start-phone.sh`, or the Mac's Wi-Fi address changed. Run step 2 again.
+
+## Away from home
+
+Later (build item 4): the hosted app with HTTPS. Not set up yet.

@@ -18,13 +18,17 @@ A web app (PWA) that turns free gaps into done tasks. You brain-dump by typing (
 - **Calendar block sync fixed:** a delete that Google answers with 404/410 (block already gone) no longer aborts the sync halfway (which could leave the calendar with old blocks removed and no new ones). Block syncs now run one at a time (`_BLOCK_SYNC_LOCK`), so the startup/30-minute sync and a manual sync can't delete each other's blocks.
 - **Verified live (2026-11-15 ~04:45):** `/api/today` → `planner: gemini` in 1.4 s, 6 sessions today with Gemini's reasons (one 15-min task Gemini left out was due today, so the rules fit it into leftover time). Tasks sync → "Between · Today" has 6 items. Calendar sync → 26 blocks over 14 days, no errors.
 - All of the above is committed and pushed.
+- **Phone capture (build item 3), Mac side done:** phone token rotated (the old one may have leaked) and the token file is now owner-only (600). New `scripts/phone_link.py` copies the Shortcut URL to the clipboard and prints only the first 3 token characters (`--new-token` rotates). Server startup no longer prints the token. `scripts/start-phone.sh` and `start-mac.sh` use `/usr/bin/python3` and are executable. `docs/PHONE_SETUP.md` rewritten as step-by-step Shortcut instructions. Verified from the Mac's Wi-Fi address: wrong/missing token → 401, right token → 200.
+- A test POST of the text "x" accidentally went in as a real capture (inbox item 13 + note 5, no task). Both deleted; nothing reached Google.
 
 ## Run it (Mac)
 ```
 cd ~/projects/between
-for f in tests/test_*.py; do /usr/bin/python3 "$f" 2>&1 | tail -1; done   # 15 files, 141 tests, all OK
-/usr/bin/python3 server.py        # must be /usr/bin/python3 (Apple Python); python.org 3.14 fails TLS
+for f in tests/test_*.py; do /usr/bin/python3 "$f" 2>&1 | tail -1; done   # 16 files, 148 tests, all OK
+scripts/start-mac.sh      # this Mac only    (= /usr/bin/python3 server.py)
+scripts/start-phone.sh    # also on home Wi-Fi for the phone (= /usr/bin/python3 server.py --host 0.0.0.0)
 ```
+Must be `/usr/bin/python3` (Apple Python); python.org 3.14 fails TLS. Phone setup: `docs/PHONE_SETUP.md`.
 Dashboard: http://127.0.0.1:8765 (Cmd+Shift+R after changes). If it says 8766, an old server still held 8765 when it started: stop both, wait until `lsof -nP -iTCP:8765 -sTCP:LISTEN` shows nothing, then start again.
 
 Google sign-in (one time, then check):
@@ -44,6 +48,9 @@ Note: checkpoint 3 said `google_auth.py` prints the granted permissions and `che
 - `scripts/dump_schedule.py` — writes `data/schedule_snapshot.txt` (all calendars, 14 days). Local only, git-ignored.
 - `tests/test_gemini_planner.py` — new: 26 tests, Gemini always mocked.
 - `tests/test_calendar_sync.py` — new: 4 tests for the block sync, Google always mocked.
+- `tests/test_phone_capture.py` — new: 7 tests for phone token checks and the token file.
+- `scripts/phone_link.py` — copies the phone Shortcut URL to the clipboard (token masked on screen).
+- `scripts/start-mac.sh`, `scripts/start-phone.sh` — start the server (Mac only / home Wi-Fi).
 - `docs/PLAN-tasks-and-boxes.md` — the original boxes/Tasks plan (partly superseded).
 - `public/` — dashboard. Cards: Pip hero, **Today's plan**, Fits your window, stats, Drop a thought, Pip has a question, Your to-dos (grouped by category, with "Not today" and "Log time").
 
@@ -67,7 +74,8 @@ PATCH `/api/tasks/<id>` {status}.
 - Google: all three permissions granted. Google Tasks sync, calendar block sync, and Canvas import work.
 - Today's live plan has 6 sessions, all due today, and 2 tasks unplaced (no room before their due dates).
 - Test data: duplicate tasks from repeated captures still in `data/life_brain.sqlite`. Not deleted (user's data).
-- Phone token appeared in terminal output pasted into chat during checkpoint 2/3 work; rotate if it leaked (`POST /api/setup/reset-token`).
+- Phone token: rotated at checkpoint 4 (the old one appeared in pasted terminal output). Get the Shortcut URL only with `scripts/phone_link.py` in your own Terminal; never paste it into chat.
+- The server is currently running with `start-phone.sh` (listening on home Wi-Fi, token required from other devices).
 
 ## Open decisions
 - "LOCK IN !!!!" Tue/Thu 1:15–2:45 — fixed commitment (blocks time, current) or study block to fill?
@@ -76,7 +84,7 @@ PATCH `/api/tasks/<id>` {status}.
 ## Build order
 1. Finish Google permission → see blocks in Calendar + "Between · Today". **Done.**
 2. Gemini: write reasons / adjust the plan (wire `gemini_day_plan` with `validate_plan`). **Done**, verified live with `gemini-flash-lite-latest`; rule planner is the fallback.
-3. Phone shortcut (dictation → `/api/capture`) on home Wi-Fi. **In progress** (next up).
+3. Phone shortcut (dictation → `/api/capture`) on home Wi-Fi. **In progress.** Mac side done and verified. Next: the user runs `scripts/phone_link.py`, builds the iPhone Shortcut per `docs/PHONE_SETUP.md`, and sends one test capture from the phone.
 4. AWS: MFA, region, domain → EC2 t3.micro + Docker + HTTPS + Secrets Manager + $0 budget alert. Set `APP_URL` in `.env` so Google Tasks links open the hosted app. **Not started.** Don't create AWS resources without asking.
 5. Gemini Live voice (needs HTTPS + server-side key). **Not started.**
 6. Learning from logged time / skips (needs weeks of data). **Not started**; skips now feed the planner, and `last_skipped_on` is recorded.

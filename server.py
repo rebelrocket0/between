@@ -466,15 +466,14 @@ def get_or_create_phone_token():
         token = PHONE_TOKEN_PATH.read_text(encoding="utf-8").strip()
         if token:
             return token
-    token = secrets.token_urlsafe(24)
-    PHONE_TOKEN_PATH.write_text(token + "\n", encoding="utf-8")
-    return token
+    return reset_phone_token()
 
 
 def reset_phone_token():
     DATA.mkdir(exist_ok=True)
     token = secrets.token_urlsafe(24)
     PHONE_TOKEN_PATH.write_text(token + "\n", encoding="utf-8")
+    PHONE_TOKEN_PATH.chmod(0o600)  # readable and writable by you only
     return token
 
 
@@ -1206,7 +1205,7 @@ def setup_info(host_header=None):
         "phone_urls": urls,
         "capture_urls": capture_urls,
         "phone_token": token,
-        "run_for_phone_command": "python3 server.py --host 0.0.0.0",
+        "run_for_phone_command": "/usr/bin/python3 server.py --host 0.0.0.0",
         "shortcut": {
             "url": shortcut_url,
             "method": "POST",
@@ -2444,8 +2443,10 @@ def main():
     port = find_port(args.port) if args.host in {"127.0.0.1", "localhost"} else args.port
     server = LifeBrainServer((args.host, port), Handler)
     print(f"Between running at http://{args.host}:{port}", flush=True)
-    for url in local_network_urls(port, get_or_create_phone_token()):
-        print(f"Phone URL: {url}", flush=True)
+    if args.host not in {"127.0.0.1", "localhost"}:
+        # Never print the token: logs and terminal output get pasted around.
+        for url in local_network_urls(port, "TOKEN"):
+            print(f"Phone URL: {url.split('?')[0]}  (get the link with scripts/phone_link.py)", flush=True)
     print(f"Database: {DB_PATH}", flush=True)
     threading.Thread(target=run_scheduled_sync, daemon=True).start()
     server.serve_forever()
