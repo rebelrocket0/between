@@ -56,6 +56,23 @@ class PhoneTokenTests(unittest.TestCase):
         server.reset_phone_token()
         self.assertFalse(authorized("192.168.1.20", f"/api/capture/{old}"))
 
+    def test_initialization_preserves_an_existing_token(self):
+        self.assertEqual(server.get_or_create_phone_token(), self.token)
+        self.assertEqual(server.get_or_create_phone_token(), self.token)
+
+    def test_explicit_initialization_recovers_a_missing_file(self):
+        server.PHONE_TOKEN_PATH.unlink()
+        token = server.get_or_create_phone_token()
+        self.assertTrue(token)
+        self.assertEqual(server.PHONE_TOKEN_PATH.read_text().strip(), token)
+        self.assertEqual(stat.S_IMODE(server.PHONE_TOKEN_PATH.stat().st_mode), 0o600)
+
+    def test_explicit_initialization_recovers_an_empty_file(self):
+        server.PHONE_TOKEN_PATH.write_text("\n")
+        token = server.get_or_create_phone_token()
+        self.assertTrue(token)
+        self.assertEqual(server.get_or_create_phone_token(), token)
+
     def test_mac_itself_needs_no_token(self):
         self.assertTrue(authorized("127.0.0.1", "/api/today"))
 
@@ -94,6 +111,14 @@ class BehindProxyTests(unittest.TestCase):
             self.assertFalse(authorized(address, "/api/setup"), address)
             self.assertFalse(authorized(address, "/api/setup/reset-token"), address)
             self.assertFalse(authorized(address, "/api/capture"), address)
+
+    def test_unauthenticated_health_does_not_initialize_a_missing_token(self):
+        # Characterize the incident's failure path; this is not the permanent fix.
+        server.PHONE_TOKEN_PATH.unlink()
+        self.assertFalse(authorized("127.0.0.1", "/api/health"))
+        self.assertFalse(server.PHONE_TOKEN_PATH.exists())
+        token = server.get_or_create_phone_token()
+        self.assertTrue(authorized("127.0.0.1", "/api/health", {"X-Life-Brain-Token": token}))
 
     def test_token_works_every_way_behind_a_proxy(self):
         self.assertTrue(authorized("127.0.0.1", f"/api/capture/{self.token}"))

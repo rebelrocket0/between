@@ -1,95 +1,85 @@
-# Deploy Between to AWS (pipbetween.duckdns.org)
+# Deploying Between
 
-Server: EC2 t3.micro, Ubuntu 24.04, us-west-2. Login `ubuntu`, key `~/.ssh/between-key-3.pem`.
-Every command below runs **on the Mac** in `~/projects/between` unless it says "on the server".
-Never paste tokens, keys, or `.env` values into chat. Replace `SERVER_IP` with the instance's Public IPv4 address.
+This guide describes the existing EC2 + Docker Compose + Caddy deployment. It uses placeholders, not the owner's host, IP address, region, or SSH key location. No deployment was performed for the Phase 1 documentation milestone.
 
-## 1. First login (checks the key works)
+The hosted server is the single source of truth. Keep the production Mac server stopped. Do not create billable resources, change cloud settings, replace hosted data, or deploy without the owner's approval.
 
-```bash
-ssh -i ~/.ssh/between-key-3.pem ubuntu@SERVER_IP
-```
-Type `yes` if asked about the fingerprint (first time only), then `exit`.
-"Connection timed out" usually means your IP changed: EC2 → Security Groups → the group's SSH rule → **My IP** → Save.
+## Existing-server prerequisites
 
-## 2. Set up the server + point the DuckDNS name
+The existing Ubuntu host must have Docker Compose, `/opt/between/.env`, and a persistent `/opt/between/data/` directory. DNS must point the approved domain to the host, and ports 80/443 must reach Caddy. Restrict SSH access to the operator's approved source address where practical. Keep the app's port internal to the Docker network.
+
+On the Mac, configure these placeholders in your own shell with the approved deployment details:
 
 ```bash
-deploy/setup.sh SERVER_IP
-```
-It installs Docker and Compose, creates `/opt/between` (yours only) with `data/` and an empty `.env` (chmod 600),
-then **asks for your DuckDNS token on the server** in a hidden prompt:
-`Paste or type your DuckDNS token here (it stays hidden)`. That's the only place you type it.
-It then points `pipbetween.duckdns.org` at the server (DuckDNS answers `OK`) and adds a cron job that keeps it pointed
-every 5 minutes and after reboots (the IP changes if the instance is stopped and started).
-
-Check from the Mac (should print the server's IP):
-```bash
-dig +short pipbetween.duckdns.org
+export BETWEEN_DOMAIN='your-domain.example'
+export BETWEEN_HOST='your-approved-server'
+export BETWEEN_SSH_KEY='/path/to/your/private-key.pem'
 ```
 
-## 3. Put the secrets in the server's `.env` (pick one)
+The helpers read these variables through `deploy/common.sh`. Compose separately reads `DOMAIN` on the server; set `DOMAIN` and `APP_URL` to the correct domain in the server `.env`. Set `BETWEEN_BEHIND_PROXY=1`; `.env` overrides inherited app settings, so it must not disable that flag.
 
-**A. Copy from the Mac (easiest; nothing to type):**
-```bash
-deploy/push-env.sh SERVER_IP
-```
-Copies this Mac's `.env` over SSH, sets `APP_URL=https://pipbetween.duckdns.org` and `BETWEEN_BEHIND_PROXY=1`,
-and prints only the key names.
+The server `.env` holds Gemini and Google credentials. Keep it mode 600 and `data/` mode 700, owned by the app's mapped user. Never paste either file's contents, phone tokens, SSH keys, or private links into chat, Git, or demo recordings.
 
-**B. Type them on the server:**
-```bash
-ssh -i ~/.ssh/between-key-3.pem ubuntu@SERVER_IP
-nano /opt/between/.env      # fill the empty lines; Ctrl+O, Return, Ctrl+X
-exit
-```
+## Updating the existing application
 
-## 4. Deploy
+After reviewing the diff, passing tests, and obtaining deployment approval, run from the repository root:
 
 ```bash
-deploy/deploy.sh SERVER_IP --with-data     # first time: also copies your tasks from the Mac
-deploy/deploy.sh                           # later updates (uses pipbetween.duckdns.org)
-```
-It copies the project (never `.env`, `data/`, `.git`, keys), builds, starts the app and Caddy,
-and waits until `https://pipbetween.duckdns.org/api/health` answers (401 = up and asking for the token).
-
-## 5. Stop the Mac server
-
-Both servers would otherwise sync to the same Google account and overwrite each other's
-"Between:" blocks and "Between · Today" list. Stop the Mac one (Ctrl+C in its Terminal, or):
-```bash
-kill $(lsof -tnP -iTCP:8765 -sTCP:LISTEN)
+deploy/deploy.sh
 ```
 
-## 6. Links (the token goes straight to the clipboard, never on screen)
+The script copies source, excluding `.env`, `data/`, `.git/`, and common credential files; rebuilds the app; starts Compose services; and checks HTTPS health. Review the source tree before running it: untracked documentation can also be copied because deployment uses rsync rather than Git.
+
+**Do not use `--with-data` without explicit approval.** It stops the app and replaces the hosted database with the local copy. Ordinary code updates must preserve the server's data and token.
+
+The credentials helper `deploy/push-env.sh` is for intentional configuration transfer. Do not use it for normal source updates or use its force option without reviewing the configuration change.
+
+## Private links and the known token issue
+
+After the hosted token has been initialized and confirmed valid, the Mac helpers copy links directly to the clipboard:
 
 ```bash
-deploy/hosted-link.sh dashboard   # open once in each browser (Mac + iPhone Safari)
-deploy/hosted-link.sh shortcut    # paste into the Shortcut's Get Contents of URL
+deploy/hosted-link.sh dashboard
+deploy/hosted-link.sh shortcut
 ```
 
-## Checklist
+Open the dashboard link once per trusted browser. Paste the Shortcut link into its POST action, using JSON `{text: Dictated Text, source: "phone"}` and `Content-Type: application/json`. Never show the URL action or clipboard while recording.
 
-- [ ] `https://pipbetween.duckdns.org` loads in Safari with a **padlock** (click it: certificate from Let's Encrypt).
-- [ ] `curl -s -o /dev/null -w '%{http_code}\n' https://pipbetween.duckdns.org/api/health` prints `401` (up, token required).
-- [ ] Opening `https://pipbetween.duckdns.org` **without** the token: the dashboard shows "This device needs the Between link with ?token= once".
-- [ ] Opening the `dashboard` link from step 6: tasks load, and `?token=` disappears from the address bar. Reload: still works.
-- [ ] Mac and iPhone dashboards show the **same** tasks.
-- [ ] iPhone on **cellular** (Wi-Fi off): run the Shortcut with the `shortcut` link → say a task → it appears on both dashboards.
-- [ ] Google Calendar still shows "Between:" blocks and "Between · Today" updates (now from the server).
+The host previously had no phone-token file. Manual initialization restored access, and the owner then verified remote iPhone capture. The permanent fix remains pending:
 
-## Useful on the server
+- `main()` initializes the database but does not ensure the token exists.
+- Authentication short-circuits when a request supplies no token. An unauthenticated health request returns 401 without calling `get_or_create_phone_token()`.
+- The link helper relies on that health request to create the file, then reads it remotely. Its remote `printf` can still exit successfully after `cat` fails, yielding an empty-token link and a misleading clipboard message.
+
+A 401 proves the API requires authentication; it does **not** prove that the token file exists. Do not repeatedly rotate a working token to diagnose this. Rotation invalidates all existing browser and Shortcut links. Follow-up work should ensure initialization at startup, validate the persisted token before copying a link, fail without touching the clipboard on error, and test persistence and concurrent initialization. Phase 1 documents this path without changing production authentication.
+
+## Verification after an approved deployment
+
+Use the approved domain from your shell. This check prints only the status code:
 
 ```bash
-ssh -i ~/.ssh/between-key-3.pem ubuntu@pipbetween.duckdns.org
-cd /opt/between
-sudo docker compose ps                 # both running?
-sudo docker compose logs --tail 50     # recent output (no tokens are logged)
-sudo docker compose restart between
-cat ~/.config/duckdns/update.log | tail -3   # DuckDNS OK/KO only
+curl -s -o /dev/null -w '%{http_code}\n' "https://$BETWEEN_DOMAIN/api/health"
 ```
 
-## Cost control
+Expect **401** without a token. An unauthenticated 200 requires investigation, even though the current deploy script accepts either status as a liveness result.
 
-Stop the instance (EC2 → Instances → Instance state → **Stop**) when you don't need it; the cron job re-points
-DuckDNS when it starts again. **Terminate** after the hackathon to end all charges. Budget alert: "between-monthly".
+Then verify manually:
+
+1. HTTPS loads with a valid certificate, and an unauthenticated browser receives no task data.
+2. A valid private dashboard link loads tasks, removes `?token=` from the address bar, and survives a reload.
+3. The desktop and iPhone show the same hosted data.
+4. One clearly labeled demo capture sent from iPhone cellular appears once in Between.
+5. Following a sync, the planned items appear in Google Calendar and Google Tasks.
+6. Skipping changes today's dashboard plan; logging time updates the task's logged and remaining minutes.
+
+These actions create or modify real data. Use owner-approved demo tasks and never replace the database for a rehearsal. Delete nothing without approval.
+
+For a failure, inspect service status over SSH. Treat application logs as sensitive: request logging has not been fully audited for token-bearing paths. Do not paste raw logs into shared channels.
+
+## Provisioning another host
+
+Creating another instance is outside the normal update procedure and requires explicit approval. The initial `deploy/setup.sh` and server-side setup/DuckDNS scripts contain deployment-specific defaults; they are not a generic provisioning package. Review those defaults before using them elsewhere. Do not assume the Mac environment overrides every server-side domain setting.
+
+An approved setup needs a chosen region, DNS, restricted SSH, persistent storage, secret configuration, HTTPS, a budget alert, and a verified token initialization path. Secrets Manager integration is not implemented; secrets currently reside in the private server `.env`.
+
+Stopping an EC2 instance does not necessarily stop storage or other account charges. Review the actual account resources before changing or deleting infrastructure. This guide does not quote pricing or authorize resource changes.

@@ -1,5 +1,7 @@
 # Between — checkpoint 4 (2026-11-15, ~04:50)
 
+Historical checkpoint: use `docs/HANDOFF-short.md` and `docs/ROADMAP-STATUS.md` for the current hosted source of truth, v5 dashboard, validation results, and approved phase boundaries. Do not follow the old local-server or deployment status below as current instructions.
+
 Start here. This replaces checkpoint 3. Never put keys, tokens, passwords, account IDs, or private calendar links in this file.
 
 ## What Between is now
@@ -78,7 +80,7 @@ PATCH `/api/tasks/<id>` {status}.
 - The server is currently running with `start-phone.sh` (listening on home Wi-Fi, token required from other devices).
 
 ## Open decisions
-- "LOCK IN !!!!" Tue/Thu 1:15–2:45 — fixed commitment (blocks time, current) or study block to fill?
+- Recurring study blocks — fixed commitments (current) or study time to fill?
 - Gemini sees calendar event titles or times only. Implemented as times only; keep unless the user wants titles.
 
 ## Build order

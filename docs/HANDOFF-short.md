@@ -1,37 +1,37 @@
-# Between — handoff (2026-11-15, 05:10)
+# Between — current handoff (2026-11-15)
 
-Paste this into a new chat or give it to Claude Code. The full technical state lives in `~/projects/between/docs/HANDOFF.md` (checkpoint 4, written by Claude Code). This file is the short version plus what happened after it.
+Read `AGENTS.md`, then this file and `docs/ROADMAP-STATUS.md`. The owner's newest nine-phase roadmap supersedes the older build order. `docs/HANDOFF.md` is a historical checkpoint; its local-server, phone-setup, hosting, version, and test-count statements are stale. `HANDOFF-FULL.md` is a private untracked reference and must remain untracked.
 
-Rules: never put keys, tokens, passwords, account IDs, or private calendar links in any file or chat. Run Python as `/usr/bin/python3`. Don't create billable AWS resources without asking the user. One step at a time; stay on the build order.
+## Current operational state
 
-## What works right now
-- Web app at http://127.0.0.1:8765 (dashboard: Today's plan, Fits your window, Drop a thought, Pip's questions, to-dos in 3 categories with "Log time" and "Not today").
-- Gemini splits brain dumps into tasks and asks follow-ups. Model: `gemini-flash-lite-latest` (the other two models were too slow and timed out).
-- Google Calendar read (classes block time), Canvas calendar import (due dates become school tasks), two-week planner spreads work before due dates, "Between:" blocks written to Google Calendar, "Between · Today" list in Google Tasks. All three Google permissions confirmed OK.
-- Root cause of the repeated sign-ins was fixed: old GOOGLE_* variables set via `launchctl setenv` overrode `.env`. `.env` now wins. Clear leftovers with `launchctl unsetenv` if they return before a reboot.
-- Git: private GitHub repo `between`, co-author trailers removed and disabled. Check `git status` before each commit; `.gitignore` covers .env, data/, client_secret*.json.
-- Tests: 14 files, 137 tests passing (Gemini and Google mocked everywhere).
+- The AWS-hosted server is the single source of truth. The owner reports working HTTPS, dashboard, Gemini capture, Calendar/Tasks sync, Canvas calendar import, follow-up questions, and remote iPhone dictation capture.
+- Do not start a competing Mac server connected to production Google integrations. Tests use temporary data and mocked services.
+- Dashboard/question guards and PWA asset/cache v5 are committed in `4ded95f`. At Phase 1 start, local and remote `main` matched `6bd613b`, the README story update.
+- Never print or commit secrets, task data, authenticated links, private infrastructure details, or AI co-author trailers. Use `/usr/bin/python3` on this Mac.
 
-## In progress: iPhone Shortcut ("local brain capture")
-Structure is correct (menu Type/Dictate → Get contents of URL, POST, JSON body {text, source: phone}, Content-Type: application/json). Two fixes needed:
-1. The token in the URL is stale and has appeared in screenshots. Rotate once: `curl -s -X POST http://127.0.0.1:8765/api/setup/reset-token` on the Mac, then paste the new token after `/api/capture/` in BOTH Get-contents actions. Never paste the token into chat.
-2. Replace the IP with `mac.local:8765` in both actions. Remove the empty header row.
-Test on home Wi-Fi: run shortcut → Dictate → "read chapter 4 for 20 minutes" → task appears on the dashboard.
+## Phase 1 milestone approved
 
-## Build order (remaining)
-1. Finish the Shortcut test above.
-2. README + 2-minute demo script for judges (Claude Code can draft from docs/HANDOFF.md). Set `APP_URL` in `.env` once hosted so Google Tasks links open the hosted app.
-3. AWS: user supplies MFA/region/domain. EC2 t3.micro + Docker + HTTPS + Secrets Manager + $0 budget alert. Only if hours allow; otherwise demo on home Wi-Fi and list AWS as next step.
-4. Gemini phase 2 (after AWS): clean Canvas titles + per-type estimates; break big tasks into steps (show next step only); merge Canvas/brain-dump duplicates and file low-urgency dumps as Someday; chat box ("what should I do in the next 20 min?", "am I on track for the exam?"); pattern noticing stub.
-5. Gemini Live voice (needs HTTPS + server-side key).
-6. Polish list in `docs/POLISH.md` (user is collecting UI/wording changes there).
+Updated README: motivation, student story, current features, architecture, stack, Gemini's actual role, isolated local development, deployment boundaries, privacy, roadmap, and explicit screenshot/demo placeholders.
 
-## Open decisions
-- "LOCK IN !!!!" Tue/Thu 1:15–2:45: fixed commitment (current) or study block to fill with sessions?
-- Planning window currently 7am–10pm; minimum session 10 min (consider 20 so gaps between classes stay free).
-- Canvas items named "exam"/"midterm" should become "Study for: …" with a larger estimate.
-- Gemini sees calendar times only (not event titles). Keep unless the user says otherwise.
-- Repo is private; flip to public at submission after a final secret scan. Check Sun Hacks rules on AI-tool disclosure.
+New `docs/DEMO.md`: a timed two-minute story covering phone capture, structured tasks, a real follow-up, gaps around commitments, Google outputs, skip, and time logging. Rehearsal and recording are still pending; no fabricated screenshots or live results.
 
-## Suggested first message for the next session
-"Read docs/HANDOFF.md and this file. Confirm the server runs on /usr/bin/python3 at 8765 and tests pass. Then help me finish the iPhone Shortcut test, then the README and demo script. Don't start AWS until I say how many hours are left."
+`docs/DEPLOY.md` now uses placeholders and separates approved existing-host updates from provisioning. It documents the token incident and data-copy prohibition. `docs/POLISH.md` was missing; a labeled backlog was created from the latest owner requirements.
+
+Frontend contract checks and token failure-case tests were added without changing runtime code or frontend assets. Validation: all 166 tests passed (157 existing + 9 new) with external HTTP and socket access blocked. Whitespace and local Markdown-link checks also passed. Browser/phone rehearsal remains pending.
+
+## Important implementation gaps
+
+- Gemini currently chooses today's sessions subject to validation; Phase 6's explanation-only role is not implemented.
+- Canvas import uses a default 45-minute estimate, overwrites titles on repeat sync, and lacks original-title metadata/user-edit provenance.
+- No parent/subtask model, semantic merging, Ask Pip, supported behavioral insights, or Gemini Live implementation.
+- Skip updates the dashboard plan; external sync follows separately. Logged time reduces dashboard/window remaining work but the two-week planner still reads full estimates. Do not claim automatic learning or instant calendar adjustment.
+- Missing hosted token was manually initialized, per owner report. Startup does not ensure it exists; unauthenticated health requests short-circuit before creation, defeating the link helper's assumption. A separate startup/link-generation safeguard and request-log redaction need investigation. Do not rotate a working token casually.
+- The v5 service worker exists, but registration was not found; offline behavior is unverified.
+
+Detailed source reconciliation and follow-up acceptance criteria: `docs/ROADMAP-STATUS.md`.
+
+## Next action
+
+The owner approved Phase 1 commit/push and proceeding to Phase 2. Implement Smart Canvas processing incrementally, then wait for approval before deployment. No Phase 1 deployment is needed. Do not use `--with-data` without explicit approval to replace hosted data.
+
+Planning hours, minimum session length, and fixed-versus-fillable commitments remain owner decisions. Keep busy-event titles out of Gemini context. Do not make the repo public or claim hackathon disclosure compliance without a separate review.
