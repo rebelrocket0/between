@@ -300,3 +300,17 @@ button.ghost { background: var(--paper); }
   margin: 14px 0 6px;
   color: var(--green);
 }
+
+/* Pip's small conversation stays beside the next action. */
+.ask-form { margin-top: 16px; text-align: left; }
+.ask-form label { display: block; font-weight: 700; margin-bottom: 6px; }
+.ask-row { display: flex; gap: 8px; }
+.ask-row input { min-width: 0; flex: 1; font: inherit; padding: 10px; border: 2px solid var(--ink); border-radius: 12px; background: var(--paper); color: var(--ink); }
+.speech { margin: 12px 0 0; padding: 12px 14px; border: 2px solid var(--green); border-radius: 4px 16px 16px; background: var(--paper); text-align: left; overflow-wrap: anywhere; }
+.next-step { margin-top: 14px; color: var(--green); font-weight: 700; }
+.step-details { margin-top: 12px; }
+.step-details summary, #someday-title { cursor: pointer; font-weight: 700; }
+.step-details ol { padding-left: 24px; }
+.step-details li { padding: 5px 0; overflow-wrap: anywhere; }
+button:disabled { opacity: .65; cursor: wait; }
+@media (max-width: 420px) { .ask-row { flex-direction: column; } }

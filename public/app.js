@@ -9,6 +9,8 @@ const $ = (id) => document.getElementById(id);
 // Task ids whose "Log time" box is open, and overruns the user chose to keep.
 const openLogs = new Set();
 const keptOverruns = new Set();
+const expandedParents = new Set();
+let pendingCapture = null;
 
 const escapeHtml = (value) =>
   String(value ?? "").replace(/[&<>"']/g, (c) => ({
@@ -162,6 +164,68 @@ function taskRow(task, { checkbox = true } = {}) {
     </li>`;
 }
 
+function parentRow(task) {
+  const steps = Array.isArray(task.steps) ? task.steps : [];
+  if (!steps.length) return taskRow(task);
+  const next = steps.find((step) => step.id === task.next_step_id);
+  return `<li class="item"><div class="item-body">
+    <div class="item-title">${escapeHtml(task.title)}</div>
+    <div class="item-meta">${task.steps_done || 0} of ${steps.length} steps complete · ${task.logged_minutes || 0} min logged · ${task.remaining_minutes || 0} min left</div>
+    ${next ? `<p class="next-step">Your next small step</p><ul class="list">${taskRow(next)}</ul>` : ""}
+    <details class="step-details" data-parent="${task.id}" ${expandedParents.has(task.id) ? "open" : ""}>
+      <summary>View all ${steps.length} steps</summary>
+      <ol>${steps.map((step) => `<li>${step.status === "done" ? "✓ " : ""}${escapeHtml(step.title)} · ${step.duration_minutes} min${step.status === "done" ? " · complete" : step.id !== task.next_step_id ? " · follows earlier steps" : ""}</li>`).join("")}</ol>
+    </details>
+  </div></li>`;
+}
+
+async function askPip(event) {
+  event.preventDefault();
+  const input = $("ask-question"), bubble = $("pip-answer"), button = $("ask-button");
+  if (!input || !bubble || !button || !input.value.trim()) return;
+  button.disabled = true;
+  bubble.classList.remove("hidden");
+  bubble.textContent = "Pip is thinking…";
+  try {
+    const result = await api("/api/ask", { method: "POST", body: JSON.stringify({ question: input.value.trim() }) });
+    bubble.textContent = result.answer || "I don't have enough information yet.";
+  } catch (err) {
+    bubble.textContent = err.message;
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function loadInsights() {
+  const el = $("pip-insights");
+  if (!el) return;
+  try {
+    const result = await api("/api/insights");
+    const insights = Array.isArray(result.insights) ? result.insights : [];
+    el.classList.toggle("hidden", insights.length === 0);
+    el.innerHTML = insights.map((insight) => `<div class="speech"><p>${escapeHtml(insight.text)}</p>
+      <div class="actions"><button data-insight="${escapeHtml(insight.id)}" data-decision="accept">Keep this in mind</button>
+      <button data-insight="${escapeHtml(insight.id)}" data-decision="dismiss">Dismiss</button></div></div>`).join("");
+  } catch (err) {
+    el.classList.add("hidden");
+  }
+}
+
+async function decideInsight(id, decision) {
+  try {
+    const result = await api(`/api/insights/${encodeURIComponent(id)}/decision`, { method: "POST", body: JSON.stringify({ decision }) });
+    toast(result.note);
+    await loadInsights();
+  } catch (err) { toast(err.message); }
+}
+
+async function activateSomeday(id) {
+  try {
+    await api(`/api/tasks/${id}`, { method: "PATCH", body: JSON.stringify({ quiet_filed: false }) });
+    await load();
+  } catch (err) { toast(err.message); }
+}
+
 // The server's gap engine decides what fits and in what order.
 function planRow(item) {
   const label = item.kind === "finish" ? "Finish it" : "Make progress";
@@ -290,16 +354,24 @@ async function refreshPlan() {
 }
 
 function renderTasks() {
-  const open = openTasks();
+  const roots = state.tasks.filter((t) => !t.parent_task_id);
+  const open = roots.filter((t) => t.status === "open" && !t.quiet_filed);
   $("tasks").innerHTML = CATEGORY_ORDER.map((key) => {
     const group = open.filter((t) => t.category === key);
     if (!group.length) return "";
     const heading = `<li class="category-title">${CATEGORY_NAMES[key]} · ${group.length}</li>`;
-    return heading + group.map((t) => taskRow(t)).join("");
+    return heading + group.map(parentRow).join("");
   }).join("");
   $("tasks-empty").classList.toggle("hidden", open.length > 0);
   $("stat-open").textContent = open.length;
-  $("stat-done").textContent = state.tasks.filter((t) => t.status === "done").length;
+  $("stat-done").textContent = roots.filter((t) => t.status === "done").length;
+  const someday = roots.filter((t) => t.status === "open" && t.quiet_filed);
+  const list = $("someday"), card = $("someday-card");
+  if (list && card) {
+    card.classList.toggle("hidden", someday.length === 0);
+    list.innerHTML = someday.map((t) => `<li class="item"><div class="item-body"><div class="item-title">${escapeHtml(t.title)}</div>
+      <button class="ghost" data-activate="${t.id}">Bring into my plan</button></div></li>`).join("");
+  }
 }
 
 function renderReview() {
@@ -337,6 +409,7 @@ async function load() {
     await refreshPlan();
     await loadQuestions();
     await loadToday();
+    await loadInsights();
   } catch (err) {
     setStatus("Offline", false);
     toast(err.message);
@@ -351,10 +424,15 @@ async function addCapture(event) {
     return;
   }
   try {
+    const source = $("capture-source").value;
+    if (!pendingCapture || pendingCapture.text !== text || pendingCapture.source !== source) {
+      pendingCapture = { text, source, key: globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}` };
+    }
     await api("/api/capture", {
       method: "POST",
-      body: JSON.stringify({ text, source: $("capture-source").value }),
+      body: JSON.stringify({ text, source, idempotency_key: pendingCapture.key }),
     });
+    pendingCapture = null;
     $("capture-text").value = "";
     toast("Captured.");
     await load();
@@ -428,6 +506,13 @@ function toggleLog(id) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  const ask = $("ask-form");
+  if (ask) ask.addEventListener("submit", askPip);
+  document.addEventListener("toggle", (event) => {
+    const id = Number(event.target.dataset?.parent);
+    if (!id) return;
+    if (event.target.open) expandedParents.add(id); else expandedParents.delete(id);
+  }, true);
   $("capture-form").addEventListener("submit", addCapture);
   let planTimer;
   $("minutes").addEventListener("input", () => {
@@ -446,6 +531,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const button = event.target.closest("button");
     if (!button) return;
     if (button.dataset.skip) skipTask(button.dataset.skip);
+    if (button.dataset.activate) activateSomeday(button.dataset.activate);
+    if (button.dataset.insight) decideInsight(button.dataset.insight, button.dataset.decision);
     if (button.dataset.convert) convert(button.dataset.id, button.dataset.convert);
     if (button.dataset.archive) archive(button.dataset.archive);
     if (button.classList.contains("chip")) {

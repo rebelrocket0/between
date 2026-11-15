@@ -3,6 +3,8 @@
 .env.*
 !.env.example
 data/
+HANDOFF-FULL.md
+*.pem
 client_secret*.json
 *client_secret*.json
 credentials.json

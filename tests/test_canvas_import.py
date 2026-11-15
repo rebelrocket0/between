@@ -43,14 +43,14 @@ class CanvasImportTests(unittest.TestCase):
         self.assertEqual((first["created"], second["created"]), (2, 0))
         self.assertEqual(second["updated"], 2)
         with server.connect() as conn:
-            count = conn.execute("SELECT COUNT(*) FROM tasks").fetchone()[0]
+            count = conn.execute("SELECT COUNT(*) FROM tasks WHERE parent_task_id IS NULL").fetchone()[0]
         self.assertEqual(count, 2)
 
     def test_titles_drop_course_codes_and_keep_due_dates(self):
         server.sync_canvas_calendar()
         with server.connect() as conn:
             row = conn.execute("SELECT title, due_date FROM tasks WHERE due_date = '2026-11-22'").fetchone()
-        self.assertEqual(row["title"], "Module 5 Quiz")
+        self.assertEqual(row["title"], "Complete Module 5 quiz")
 
     def test_missing_canvas_calendar_is_reported(self):
         server.google_calendar_call = lambda token, method, path, payload=None: {"items": []}

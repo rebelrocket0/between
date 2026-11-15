@@ -121,8 +121,8 @@ class QuestionAnswerTests(unittest.TestCase):
         server.PHONE_TOKEN_PATH = Path(self.tmp.name) / "phone_capture_token"
         server.init_db()
         tasks = [
-            {"title": "Bayesian assignment", "minutes": None, "due": None, "due_date": None, "box": None, "area": "school"},
-            {"title": "Pay rent", "minutes": None, "due": None, "due_date": None, "box": None, "area": "home"},
+            {"title": "Bayesian assignment", "minutes": None, "due": "soon", "due_date": None, "box": None, "area": "school"},
+            {"title": "Pay rent", "minutes": None, "due": "soon", "due_date": None, "box": None, "area": "home"},
         ]
         questions = [
             {"task_index": 0, "field": "minutes", "question": "How long will it take?"},

@@ -157,164 +157,98 @@ class GeminiModelFallbackTests(unittest.TestCase):
 
 
 class ServerPlannerTests(unittest.TestCase):
+    """Scheduling authority moved to rules; Gemini selects supported explanations only."""
     def setUp(self):
+        from unittest.mock import Mock, patch
         self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
         server.DATA = Path(self.tmp.name)
         server.DB_PATH = server.DATA / "test.sqlite"
-        server.PHONE_TOKEN_PATH = server.DATA / "phone-token"
+        server.PHONE_TOKEN_PATH = server.DATA / "token"
+        server.load_config = lambda: {"TIMEZONE": "America/Phoenix"}
         server.init_db()
         server.plan_cache_clear()
-        server._DAY_PLAN_CACHE.update({"key": None, "blocks": None, "at": 0.0, "failed_at": None})
-        self.config = {"TIMEZONE": "America/Phoenix", "GEMINI_API_KEY": "test-key-not-real"}
-        server.load_config = lambda: dict(self.config)
         self.today = datetime.now(TZ).date()
         server.planning_day_gaps = lambda days=tr.PLAN_HORIZON_DAYS: two_weeks(self.today)
-        self.prompts = []
-        self.gemini_answer = {"plan": []}
+        self.ai = Mock(return_value='{"reasons": [{"block":"0","fact_id":"0:due"}]}')
+        patcher = patch.object(server, "pip_json", self.ai)
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
-        def fake_gemini(prompt, config):
-            self.prompts.append(prompt)
-            if isinstance(self.gemini_answer, Exception):
-                raise self.gemini_answer
-            return self.gemini_answer
-
-        server.gemini_json = fake_gemini
-
-    def tearDown(self):
-        self.tmp.cleanup()
-
-    def add(self, title, minutes, due_days=None, box="plan"):
-        due = (self.today + timedelta(days=due_days)).isoformat() if due_days is not None else None
-        server.create_split_capture(title, "test", [
-            {"title": title, "minutes": minutes, "due": None, "due_date": due, "box": box, "area": "school"}
-        ])
+    def add(self, title="Read statistics notes", minutes=30, skips=0):
+        stamp = server.now_iso()
+        due = (self.today + timedelta(days=2)).isoformat()
         with server.connect() as conn:
-            return conn.execute("SELECT id FROM tasks WHERE title = ? ORDER BY id DESC", (title,)).fetchone()["id"]
+            return conn.execute("INSERT INTO tasks(title, duration_minutes, due_date, box, energy, created_at, updated_at, skips) VALUES (?, ?, ?, 'plan', 'medium', ?, ?, ?)", (title,minutes,due,stamp,stamp,skips)).lastrowid
 
-    def today_blocks(self):
+    def test_deterministic_rules_have_authority(self):
+        task_id = self.add()
+        self.ai.return_value = '{"plan":[{"task_id":999,"start":"23:00"}]}'
         blocks, unplaced = server.multi_day_plan()
-        return [b for b in blocks if b["start"].date() == self.today], blocks, unplaced
-
-    def test_gemini_plan_is_used_with_its_reasons(self):
-        essay = self.add("Essay", 120, due_days=5)
-        quiz = self.add("Quiz prep", 30, due_days=1)
-        self.gemini_answer = {"plan": [
-            {"task_id": quiz, "start": "10:00", "reason": "Quiz is tomorrow, short task for the morning"},
-            {"task_id": essay, "start": "15:00", "reason": "Long afternoon gap fits a solid essay hour"},
-        ]}
-        today, everything, unplaced = self.today_blocks()
-        self.assertEqual(server.today_payload()["planner"], "gemini")
-        self.assertEqual([(b["task_id"], b["start"].strftime("%H:%M")) for b in today], [(quiz, "10:00"), (essay, "15:00")])
-        self.assertEqual(today[0]["reason"], "Quiz is tomorrow, short task for the morning")
-        later = [b for b in everything if b["start"].date() > self.today]
-        self.assertEqual([b["task_id"] for b in later], [essay])  # the essay's second hour, from tomorrow
-        self.assertTrue(later[0]["reason"].startswith("Session 2 of 2"))
         self.assertEqual(unplaced, [])
-
-    def test_prompt_has_due_dates_and_skips_but_no_calendar_titles(self):
-        self.add("Essay", 120, due_days=5)
-        server.multi_day_plan()
-        prompt = self.prompts[0]
-        self.assertIn('"days_until_due": 5', prompt)
-        self.assertIn('"times_skipped": 0', prompt)
-        self.assertIn('"session_minutes": 60', prompt)
-        self.assertIn("09:00-21:00", prompt)
-
-    def test_gemini_error_falls_back_to_rules_with_reasons(self):
-        self.add("Essay", 60, due_days=0)
-        self.gemini_answer = ValueError("503 from connector")
-        today, _, _ = self.today_blocks()
-        payload = server.today_payload()
-        self.assertEqual(payload["planner"], "rules")
-        self.assertIn("Gemini unavailable", payload["planner_note"])
-        self.assertEqual(len(today), 1)
-        self.assertEqual(today[0]["reason"], "Due today; one session finishes it")
-
-    def test_network_error_falls_back_too(self):
-        self.add("Essay", 60, due_days=0)
-        self.gemini_answer = TimeoutError("timed out")
-        today, _, _ = self.today_blocks()
-        self.assertEqual(len(today), 1)
-
-    def test_failure_pauses_gemini_so_refreshes_stay_fast(self):
-        self.add("Essay", 60, due_days=0)
-        self.gemini_answer = ValueError("timed out")
-        server.multi_day_plan()
-        server.plan_cache_clear()
-        self.gemini_answer = {"plan": []}
-        server.multi_day_plan()
-        self.assertEqual(len(self.prompts), 1)
-        self.assertIn("failed recently", server.today_payload()["planner_note"])
-
-    def test_unusable_gemini_plan_falls_back(self):
-        task = self.add("Essay", 60, due_days=0)
-        self.gemini_answer = {"plan": [
-            {"task_id": 9999, "start": "10:00", "reason": "not a real task"},
-            {"task_id": task, "start": "23:30", "reason": "outside free time"},
-        ]}
-        today, _, _ = self.today_blocks()
+        self.assertEqual(blocks[0]["task_id"], task_id)
+        self.assertEqual(blocks[0]["start"].strftime('%H:%M'), '09:00')
         self.assertEqual(server.today_payload()["planner"], "rules")
-        self.assertEqual(len(today), 1)
-        self.assertNotEqual(today[0]["start"].strftime("%H:%M"), "23:30")
 
-    def test_no_api_key_never_calls_gemini(self):
-        del self.config["GEMINI_API_KEY"]
-        self.add("Essay", 60, due_days=2)
+    def test_only_supported_explanation_is_used(self):
+        self.add()
+        blocks, _ = server.multi_day_plan()
+        self.assertIn('recorded deadline', blocks[0]['reason'])
+
+    def test_unsupported_facts_do_not_override_rule_reasons(self):
+        self.add()
+        self.ai.return_value = '{"reasons":[{"block":"0","fact_id":"not-a-fact"}]}'
+        blocks, _ = server.multi_day_plan()
+        self.assertTrue(blocks[0]['reason'])
+        self.assertNotIn('not-a-fact', blocks[0]['reason'])
+
+    def test_network_failure_does_not_change_sessions(self):
+        self.add()
+        self.ai.side_effect = TimeoutError('timeout')
+        first, _ = server.multi_day_plan()
+        self.assertEqual(first[0]['start'].strftime('%H:%M'), '09:00')
+        self.assertTrue(first[0]['reason'])
+
+    def test_plan_and_explanations_are_cached(self):
+        self.add()
         server.multi_day_plan()
-        self.assertEqual(self.prompts, [])
-
-    def test_not_today_removes_task_from_today_and_from_gemini(self):
-        skipped = self.add("Laundry", 30, box="someday")
-        kept = self.add("Reading", 30, due_days=3)
-        server.skip_task(skipped)
-        self.gemini_answer = {"plan": [
-            {"task_id": skipped, "start": "10:00", "reason": "Gemini tried anyway"},
-            {"task_id": kept, "start": "11:00", "reason": "Reading for Wednesday"},
-        ]}
-        today, everything, _ = self.today_blocks()
-        self.assertNotIn('"Laundry"', self.prompts[-1])
-        self.assertIn('"Reading"', self.prompts[-1])
-        self.assertEqual([b["task_id"] for b in today], [kept])
-        moved = [b for b in everything if b["task_id"] == skipped]
-        self.assertEqual(moved[0]["start"].date(), self.today + timedelta(days=1))
-        self.assertIn("not today", moved[0]["reason"])
-
-    def test_not_today_also_works_without_gemini(self):
-        del self.config["GEMINI_API_KEY"]
-        skipped = self.add("Laundry", 30, box="someday")
-        server.skip_task(skipped)
-        today, _, _ = self.today_blocks()
-        self.assertNotIn(skipped, [b["task_id"] for b in today])
-
-    def test_skip_message(self):
-        task = self.add("Laundry", 30, box="someday")
-        self.assertIn("back tomorrow", server.skip_task(task)["reason"])
-        self.assertIn("after your other work", server.skip_task(task)["reason"])
-
-    def test_gemini_answer_is_cached_between_refreshes(self):
-        task = self.add("Essay", 60, due_days=2)
-        self.gemini_answer = {"plan": [{"task_id": task, "start": "10:00", "reason": "r"}]}
         server.multi_day_plan()
+        self.assertEqual(self.ai.call_count, 1)
+
+    def test_new_task_invalidates_context(self):
+        first = self.add()
+        server.multi_day_plan()
+        self.add('Complete algebra quiz')
         server.plan_cache_clear()
         server.multi_day_plan()
-        self.assertEqual(len(self.prompts), 1)
+        self.assertEqual(self.ai.call_count, 2)
 
-    def test_new_task_asks_gemini_again(self):
-        self.add("Essay", 60, due_days=2)
-        server.multi_day_plan()
-        self.add("Quiz", 30, due_days=1)  # capture clears the plan cache
-        server.multi_day_plan()
-        self.assertEqual(len(self.prompts), 2)
+    def test_not_today_honors_the_rule_and_removes_the_window_suggestion(self):
+        task = self.add()
+        server.skip_task(task)
+        blocks, _ = server.multi_day_plan()
+        self.assertEqual(blocks[0]['start'].date(), self.today + timedelta(days=1))
+        self.assertEqual(server.plan_for_window(30)['plan'], [])
 
-    def test_every_block_has_a_reason_in_both_planners(self):
-        for title, minutes, due in (("Essay", 180, 6), ("Quiz", 30, 1), ("Hobby", 30, None)):
-            self.add(title, minutes, due_days=due)
-        _, with_gemini_off, _ = self.today_blocks()
-        self.assertTrue(all(b["reason"] for b in with_gemini_off))
-        server.plan_cache_clear()
-        self.gemini_answer = {"plan": [{"task_id": 1, "start": "13:00", "reason": ""}]}  # empty reason gets filled
-        _, with_gemini, _ = self.today_blocks()
-        self.assertTrue(all(b["reason"] for b in with_gemini))
+    def test_logged_time_changes_the_remaining_schedule(self):
+        task = self.add(minutes=60)
+        server.multi_day_plan()
+        server.log_task_time(task, {"minutes": 20})
+        blocks, _ = server.multi_day_plan()
+        self.assertEqual(int((blocks[0]['end']-blocks[0]['start']).total_seconds()/60), 40)
+
+    def test_done_task_disappears(self):
+        task = self.add()
+        server.update_task(task, {"status": "done"})
+        self.assertEqual(server.multi_day_plan()[0], [])
+
+    def test_prompt_contains_fixed_decisions_without_busy_titles(self):
+        self.add()
+        server.multi_day_plan()
+        prompt = self.ai.call_args[0][0]
+        self.assertIn('fixed scheduling decision', prompt)
+        self.assertIn('Read statistics notes', prompt)
+        self.assertIn('untrusted data', prompt)
 
 
 if __name__ == "__main__":

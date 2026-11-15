@@ -13,7 +13,7 @@ RUN apt-get update \
 RUN useradd --create-home --uid 1000 between
 
 WORKDIR /app
-COPY server.py task_rules.py gap_engine.py ./
+COPY server.py task_rules.py gap_engine.py canvas_processing.py pip_intelligence.py ./
 COPY public ./public
 COPY scripts ./scripts
 # Files arrive with the Mac's permissions (often 600, owner-only), owned by root here, so the

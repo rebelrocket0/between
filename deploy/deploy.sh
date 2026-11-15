@@ -26,7 +26,8 @@ echo "== 2/4 Copy project to $HOST:$REMOTE_DIR"
 rsync -az --delete \
   --exclude '.env' --exclude '.env.*' --exclude 'data/' --exclude '.git/' --exclude '.claude/' \
   --exclude '__pycache__/' --exclude '*.pyc' --exclude '.DS_Store' --exclude '*.pem' \
-  --exclude 'client_secret*.json' --exclude 'credentials.json' --exclude 'token.json' \
+  --exclude '*client_secret*.json' --exclude 'credentials.json' --exclude 'token.json' \
+  --exclude 'HANDOFF-FULL.md' \
   -e "ssh ${SSH_OPTS[*]}" ./ "ubuntu@$HOST:$REMOTE_DIR/"
 
 if [ "$WITH_DATA" = 1 ]; then

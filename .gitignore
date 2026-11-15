@@ -8,6 +8,9 @@ credentials.json
 token.json
 
 # Local data (personal calendar, tasks, phone token)
+data/
+HANDOFF-FULL.md
+*.pem
 data/*.sqlite
 data/*.sqlite-*
 data/phone_capture_token

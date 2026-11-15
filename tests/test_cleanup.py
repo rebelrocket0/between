@@ -34,8 +34,9 @@ class CleanupTests(unittest.TestCase):
 
     def test_repeat_question_is_not_asked_twice(self):
         question = {"task_index": 0, "field": "minutes", "question": "How long?"}
-        server.create_split_capture("Read chapter 3", "test", [dict(TASK)], [question])
-        server.create_split_capture("Read chapter 3", "test", [dict(TASK)], [dict(question, question="How long again?")])
+        task = dict(TASK, minutes=None, due="soon")
+        server.create_split_capture("Read chapter 3", "test", [task], [question])
+        server.create_split_capture("Read chapter 3", "test", [task], [dict(question, question="How long again?")])
         self.assertEqual(len(server.open_questions()["questions"]), 1)
 
     def test_start_is_not_hobbies(self):

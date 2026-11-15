@@ -6,7 +6,7 @@
   <title>Between</title>
   <meta name="theme-color" content="#2f5d50">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="stylesheet" href="/styles.css?v=5">
+  <link rel="stylesheet" href="/styles.css?v=6">
 </head>
 <body>
   <header class="topbar">
@@ -49,6 +49,15 @@
           <button type="button" class="chip" data-minutes="60">60</button>
         </div>
         <p id="calendar-note" class="muted small"></p>
+        <form id="ask-form" class="ask-form">
+          <label for="ask-question">Ask Pip</label>
+          <div class="ask-row">
+            <input id="ask-question" type="text" maxlength="500" required placeholder="I have 20 minutes. Where should I start?">
+            <button id="ask-button" type="submit" class="primary">Ask</button>
+          </div>
+        </form>
+        <p id="pip-answer" class="speech hidden" role="status" aria-live="polite"></p>
+        <div id="pip-insights" class="hidden" aria-live="polite"></div>
       </div>
     </section>
 
@@ -110,6 +119,13 @@
       <p id="tasks-empty" class="muted hidden">Nothing open. Drop a thought above and Pip will sort it out.</p>
     </section>
 
+    <section class="card hidden" id="someday-card" aria-labelledby="someday-title">
+      <details><summary id="someday-title">Saved for someday</summary>
+        <p class="muted small">Kept safely, without filling your schedule. Choose one when you're ready.</p>
+        <ul id="someday" class="list"></ul>
+      </details>
+    </section>
+
     <section class="card" id="review-card" aria-labelledby="review-title">
       <div class="section-head">
         <h2 id="review-title">Pip isn't sure about these</h2>
@@ -122,6 +138,6 @@
     <p id="toast" class="toast hidden" role="status"></p>
   </main>
 
-  <script src="/app.js?v=5"></script>
+  <script src="/app.js?v=6"></script>
 </body>
 </html>

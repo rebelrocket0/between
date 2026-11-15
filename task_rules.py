@@ -228,7 +228,34 @@ def spread_sessions(tasks, day_gaps, today, horizon_days=PLAN_HORIZON_DAYS, used
 
     blocks = []
     unplaced = []
+    known = {task["id"]: task for task in tasks}
+    ordered, visiting, visited, invalid = [], set(), set(), set()
+    def visit(task):
+        key = task["id"]
+        if key in visiting:
+            invalid.update(visiting)
+            return
+        if key in visited:
+            return
+        visiting.add(key)
+        dependency = task.get("depends_on")
+        if dependency is not None:
+            if dependency in known:
+                visit(known[dependency])
+            else:
+                invalid.add(key)
+        visiting.remove(key)
+        visited.add(key)
+        ordered.append(task)
     for task in sorted(tasks, key=urgency):
+        visit(task)
+    finished_at = {}
+    for task in ordered:
+        dependency = task.get("depends_on")
+        if task["id"] in invalid or (dependency is not None and dependency not in finished_at):
+            unplaced.append(task["id"])
+            continue
+        ready = finished_at.get(dependency)
         due = valid_date(task.get("due"))
         deadline = min(date.fromisoformat(due), last_day) if due else last_day
         deadline = max(deadline, today)
@@ -241,12 +268,12 @@ def spread_sessions(tasks, day_gaps, today, horizon_days=PLAN_HORIZON_DAYS, used
                 if day < earliest or day > deadline or day in days_used:
                     continue
                 room = MAX_DAY_TASK_MINUTES - used_minutes[day]
-                length = min(SESSION_MINUTES, remaining, room)
+                length = min(SESSION_MINUTES, max(MIN_BLOCK_MINUTES, remaining), room)
                 if length < MIN_BLOCK_MINUTES:
                     continue
                 need = timedelta(minutes=length)
                 for slot in list(slots[day]):
-                    start = slot[0]
+                    start = max(slot[0], ready + timedelta(minutes=BLOCK_BUFFER_MINUTES)) if ready else slot[0]
                     end = start + need
                     if end > slot[1]:
                         continue
@@ -264,6 +291,8 @@ def spread_sessions(tasks, day_gaps, today, horizon_days=PLAN_HORIZON_DAYS, used
                     slots[day].extend(piece for piece in (before, after) if piece[1] > piece[0])
                     used_minutes[day] += length
                     remaining -= length
+                    if remaining <= 0:
+                        finished_at[task["id"]] = end
                     days_used.add(day)
                     placed = True
                     break
