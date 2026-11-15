@@ -16,13 +16,25 @@ If macOS asks "Allow incoming connections?" for Python, click **Allow**.
 ## 2. Copy the Shortcut URL (on the Mac, in your own Terminal)
 
 ```bash
-/usr/bin/python3 scripts/phone_link.py
+/usr/bin/python3 scripts/phone_link.py --new-token
 ```
 
-It copies `http://<your-mac-ip>:8765/api/capture/<token>` to the clipboard and shows only the first 3 characters of the token.
-Add `--new-token` to make a fresh token (any old Shortcut URL stops working).
+Run this in your own Terminal: it rotates the stale token mentioned in the handoff and copies the new URL to the clipboard. Any old Shortcut URL stops working; the running server reads the new token without a restart.
+
+The URL uses `http://<your-mac-local-hostname>.local:8765/api/capture/<token>`. The helper finds the Mac's actual Bonjour name; don't assume it is `mac.local`. Its terminal output masks the token. Never paste the URL or a screenshot of it into chat.
+
+After this one rotation, omit `--new-token` whenever you only need to copy the current URL again.
 
 ## 3. Make the Shortcut (on the iPhone, Shortcuts app)
+
+If you already have **local brain capture** with a Type/Dictate menu, keep it:
+
+1. Paste the newly copied URL into **both** Get Contents of URL actions, replacing the entire old URL.
+2. In each action, set **Method** to **POST** and **Request Body** to **JSON**.
+3. Keep `text` connected to the branch's **Provided Input** or **Dictated Text** variable, and `source` set to `phone`.
+4. Keep the header **Content-Type: application/json** and remove the empty header row.
+
+For a new dictation-only shortcut:
 
 1. Tap **+** to make a new shortcut. Name it **Between**.
 2. Add **Dictate Text**.
@@ -32,11 +44,14 @@ Add `--new-token` to make a fresh token (any old Shortcut URL stops working).
 6. Set **Request Body** to **JSON**. Add two text fields:
    - `text` → tap and pick the **Dictated Text** variable
    - `source` → type `phone`
-7. Add **Show Notification** (optional) so you see that it worked.
+7. Set the header **Content-Type** to **application/json**. Remove any empty header row.
+8. Add **Show Notification** (optional). Confirm success on the dashboard; a notification alone does not prove capture succeeded.
 
 ## 4. Try it
 
-Run the shortcut, say a task (for example "finish the essay outline by Friday, about an hour"), and check the dashboard on the Mac: it shows up under Your to-dos.
+With both devices on home Wi-Fi, run the shortcut → **Dictate** → say "read chapter 4 for 20 minutes". Reload the dashboard on the Mac and confirm the task appears under Your to-dos. Then try the **Type** branch to verify its separate URL action too.
+
+This creates real tasks and may trigger the normal Google sync. The phone step is complete only after the captures appear on the dashboard; Mac-side automated tests do not verify iPhone connectivity.
 
 ## Typing instead of talking
 
@@ -45,8 +60,9 @@ Replace **Dictate Text** with **Ask for Input** (type: Text) and pick **Provided
 ## If it doesn't work
 
 - "Phone token required": the URL's token is old. Run step 2 again and paste the new URL.
-- Nothing happens / times out: the phone isn't on the same Wi-Fi, the server isn't running with `start-phone.sh`, or the Mac's Wi-Fi address changed. Run step 2 again.
+- Nothing happens / times out: check that both devices are on the same Wi-Fi, the Mac is awake, and the server is running with `start-phone.sh` on port 8765.
+- If the `.local` name cannot be reached, run `/usr/bin/python3 scripts/phone_link.py --ip` and replace the URL in both actions. Some campus or guest Wi-Fi networks block device-to-device access; use home Wi-Fi for this test. An IP-based URL needs updating when the Mac's address changes.
 
 ## Away from home
 
-Later (build item 4): the hosted app with HTTPS. Not set up yet.
+Later: the hosted app with HTTPS. Deployment is deferred until the user authorizes AWS setup.
