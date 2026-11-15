@@ -16,7 +16,11 @@ WORKDIR /app
 COPY server.py task_rules.py gap_engine.py ./
 COPY public ./public
 COPY scripts ./scripts
-RUN mkdir -p /app/data && chown between:between /app/data
+# Files arrive with the Mac's permissions (often 600, owner-only), owned by root here, so the
+# "between" user couldn't read server.py. Make code readable (not writable) by everyone.
+# data/ stays private: it's created after this and owned by "between" only.
+RUN chmod -R a+rX,go-w /app \
+    && mkdir -p /app/data && chown between:between /app/data && chmod 700 /app/data
 
 USER between
 EXPOSE 8765
