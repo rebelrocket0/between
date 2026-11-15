@@ -8,6 +8,9 @@ ROOT = Path(__file__).resolve().parent.parent
 spec = importlib.util.spec_from_file_location("server", ROOT / "server.py")
 server = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(server)
+# Never touch the real Google account or Gemini from tests.
+server.AUTO_SYNC_GOOGLE_TASKS = False
+server.load_config = lambda: {"TIMEZONE": "America/Phoenix"}
 
 
 class ParseTests(unittest.TestCase):

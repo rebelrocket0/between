@@ -312,6 +312,7 @@ def ensure_task_columns():
         ensure_column(conn, "tasks", "box", "TEXT")
         ensure_column(conn, "tasks", "due_date", "TEXT")
         ensure_column(conn, "tasks", "skips", "INTEGER NOT NULL DEFAULT 0")
+        ensure_column(conn, "tasks", "last_skipped_on", "TEXT")
         ensure_column(conn, "tasks", "google_task_id", "TEXT")
         ensure_column(conn, "tasks", "google_box", "TEXT")
         conn.commit()
@@ -804,7 +805,7 @@ def split_with_gemini(text, config):
             )
             raw = body["candidates"][0]["content"]["parts"][0]["text"]
             return parse_split(raw)
-        except (ValueError, KeyError, IndexError, TypeError) as exc:
+        except (ValueError, KeyError, IndexError, TypeError, OSError) as exc:  # OSError: timeouts move on to the next model
             last_error = exc
     raise ValueError(f"Gemini could not split this note: {last_error}")
 
@@ -2021,37 +2022,100 @@ def gemini_json(prompt, config):
             if isinstance(data, dict):
                 return data
             last_error = ValueError("Gemini did not return an object.")
-        except (ValueError, KeyError, IndexError, TypeError) as exc:
+        except (ValueError, KeyError, IndexError, TypeError, OSError) as exc:  # OSError: timeouts move on to the next model
             last_error = exc
     raise ValueError(f"Gemini could not plan the day: {last_error}")
 
 
-def gemini_day_plan(planned_input, gaps, config):
-    """Ask Gemini to pick today's tasks and times inside the free time."""
-    today = datetime.now(app_timezone(config)).strftime("%A, %B %d, %Y")
+def gemini_day_plan(planned_input, gaps, config, today=None):
+    """Ask Gemini to pick today's sessions and times inside the free time.
+
+    planned_input: tasks with id, title, box, due, minutes (today's session length), skips.
+    Only free-time ranges are sent, never calendar event titles.
+    """
+    today = today or datetime.now(app_timezone(config)).date()
     gap_text = "; ".join(f"{start:%H:%M}-{end:%H:%M}" for start, end in gaps) or "none"
-    task_lines = [
-        {
+    task_lines = []
+    for task in planned_input:
+        due = task_rules.valid_date(task.get("due"))
+        task_lines.append({
             "task_id": task["id"],
             "title": task["title"],
             "category": task_rules.CATEGORY_NAMES[task_rules.CATEGORY_BY_BOX[task["box"]]],
-            "minutes": task["minutes"],
-            "skips": task["skips"],
-        }
-        for task in planned_input
-    ]
+            "session_minutes": task["minutes"],
+            "due": due,
+            "days_until_due": (date.fromisoformat(due) - today).days if due else None,
+            "must_start_today": task_rules.must_start_today(dict(task, minutes=task.get("total_minutes")), today),
+            "times_skipped": task.get("skips") or 0,
+        })
     prompt = (
         "You plan a student's day. "
-        f"Today is {today}. Free time today: {gap_text}. "
+        f"Today is {today:%A, %B %d, %Y}. Free time today: {gap_text}. "
         f"Open tasks as JSON: {json.dumps(task_lines)}. "
-        "Choose which tasks to do today and when. Do urgent and important tasks first, then urgent, then important. "
-        "Tasks that were skipped often can go later. Do not schedule more than two someday-type tasks. "
-        "Each task must start at a time inside a free stretch and fit before that stretch ends. "
-        "Give a short reason for each task, in plain words. "
+        "Choose which tasks get a session today and when. Every task with must_start_today true goes today if it fits. "
+        "Then prefer the nearest due dates: urgent and important first, then urgent, then important. "
+        "Tasks skipped two or more times go after the others. At most two tasks without a due date. "
+        f"Keep today's total under {task_rules.MAX_DAY_TASK_MINUTES} minutes. "
+        "Tasks you leave out are scheduled on later days automatically, so don't cram. "
+        "Each session lasts its session_minutes, must start inside a free stretch, and must end before that stretch ends. "
+        "Leave 5 minutes between sessions. "
+        "For each session give a reason of at most 15 plain words that says why today and why that time "
+        "(for example the due date, or that it's a short task for a short gap). "
         'Return only JSON shaped like {"plan": [{"task_id": 1, "start": "15:10", "reason": "short reason"}]}.'
     )
     data = gemini_json(prompt, config)
     return data.get("plan", [])
+
+
+GEMINI_PLAN_CACHE_SECONDS = 1800
+GEMINI_RETRY_AFTER_FAILURE_SECONDS = 600
+GEMINI_PLAN_MAX_TASKS = 25
+_LAST_PLANNER = {"name": "rules", "note": None}
+
+
+def gemini_today_blocks(planned, today_gaps, today, config):
+    """Today's sessions chosen by Gemini and checked by validate_plan.
+
+    Returns [] when Gemini isn't set up, fails, or gives nothing usable; the caller then
+    uses the rule planner. Gemini's raw answer is cached for 30 minutes per (day, tasks,
+    free-time shape) so the dashboard doesn't call it on every refresh.
+    """
+    if not configured(config, "GEMINI_API_KEY") or not today_gaps:
+        return []
+    candidates = [
+        dict(task, minutes=task_rules.today_session_minutes(task), total_minutes=task.get("minutes"))
+        for task in planned
+        if (task.get("earliest") or today) <= today
+    ]
+    candidates.sort(key=lambda t: (task_rules.valid_date(t.get("due")) or "9999-12-31", task_rules.BOX_ORDER.get(t["box"], 9)))
+    candidates = candidates[:GEMINI_PLAN_MAX_TASKS]
+    if not candidates:
+        return []
+    key = (
+        today.isoformat(),
+        tuple((t["id"], t["minutes"], t["total_minutes"], t["box"], t.get("due"), t.get("skips") or 0) for t in candidates),
+        tuple(end.isoformat() for _, end in today_gaps),
+    )
+    cached = _DAY_PLAN_CACHE
+    failed_at = cached.get("failed_at")
+    if failed_at is not None and monotonic() - failed_at < GEMINI_RETRY_AFTER_FAILURE_SECONDS:
+        _LAST_PLANNER["note"] = "Gemini failed recently, used rules"
+        return []
+    if cached["key"] == key and monotonic() - cached.get("at", 0.0) < GEMINI_PLAN_CACHE_SECONDS:
+        raw = cached["blocks"]
+    else:
+        try:
+            raw = gemini_day_plan(candidates, today_gaps, config, today=today)
+        except (ValueError, OSError) as exc:
+            # Don't make every refresh wait on a failing Gemini; try again after a pause.
+            cached["failed_at"] = monotonic()
+            _LAST_PLANNER["note"] = f"Gemini unavailable, used rules ({str(exc)[:80]})"
+            return []
+        cached.update({"key": key, "blocks": raw, "at": monotonic(), "failed_at": None})
+    blocks = task_rules.validate_plan(raw, today_gaps, candidates, max_total_minutes=task_rules.MAX_DAY_TASK_MINUTES)
+    if not blocks:
+        _LAST_PLANNER["note"] = "Gemini's plan didn't fit your free time, used rules"
+    return blocks
 
 
 def planning_day_gaps(days=task_rules.PLAN_HORIZON_DAYS):
@@ -2084,27 +2148,37 @@ def multi_day_plan():
         return _PLAN_CACHE["value"]
     config = load_config()
     today = datetime.now(app_timezone(config)).date()
+    tomorrow = today + timedelta(days=1)
     with connect() as conn:
         open_tasks = rows(
             conn,
-            "SELECT id, title, box, due_date, duration_minutes FROM tasks WHERE status = 'open'",
+            "SELECT id, title, box, due_date, duration_minutes, skips, last_skipped_on FROM tasks WHERE status = 'open'",
         )
-    planned = [
-        {
+    planned = []
+    for task in open_tasks:
+        skipped_today = task["last_skipped_on"] == today.isoformat()
+        planned.append({
             "id": task["id"],
             "title": task["title"],
             "box": task_rules.effective_box(task["box"], task["due_date"], today),
             "due": task_rules.valid_date(task["due_date"]),
             "minutes": task["duration_minutes"],
-        }
-        for task in open_tasks
-    ]
-    blocks, unplaced = task_rules.spread_sessions(planned, planning_day_gaps(), today)
+            "skips": task["skips"] or 0,
+            # "Not today" means no session today; the task picks up again tomorrow.
+            "earliest": tomorrow if skipped_today else None,
+            "skipped_today": skipped_today,
+        })
+    day_gaps = planning_day_gaps()
+    _LAST_PLANNER.update({"name": "rules", "note": None})
+    ai_blocks = gemini_today_blocks(planned, day_gaps.get(today, []), today, config)
+    if ai_blocks:
+        blocks, unplaced = task_rules.plan_with_today(ai_blocks, planned, day_gaps, today)
+        _LAST_PLANNER["name"] = "gemini"
+    else:
+        blocks, unplaced = task_rules.spread_sessions(planned, day_gaps, today)
+    task_rules.explain_blocks(blocks, planned, today)
     for block in blocks:
-        block["category"] = task_rules.CATEGORY_BY_BOX.get(block["box"], "important")
-        block["reason"] = (
-            f"Spread out before it's due {block['due']}" if block.get("due") else "Filling free time before deadlines"
-        )
+        block["category"] = task_rules.CATEGORY_BY_BOX.get(block.get("box"), "important")
     _PLAN_CACHE.update({"at": monotonic(), "value": (blocks, unplaced)})
     return blocks, unplaced
 
@@ -2119,6 +2193,8 @@ def today_payload():
     return {
         "ok": True,
         "unplaced": len(unplaced),
+        "planner": _LAST_PLANNER["name"],
+        "planner_note": _LAST_PLANNER["note"],
         "blocks": [
             {
                 "task_id": b["task_id"],
@@ -2189,7 +2265,11 @@ def skip_task(task_id):
         if row is None:
             raise ValueError("Task not found.")
         skips = (row["skips"] or 0) + 1
-        conn.execute("UPDATE tasks SET skips = ?, updated_at = ? WHERE id = ?", (skips, now_iso(), task_id))
+        today = datetime.now(app_timezone()).date().isoformat()
+        conn.execute(
+            "UPDATE tasks SET skips = ?, last_skipped_on = ?, updated_at = ? WHERE id = ?",
+            (skips, today, now_iso(), task_id),
+        )
         conn.commit()
     plan_cache_clear()
     moved = task_rules.should_move_after_skip(skips, row["box"])
@@ -2197,7 +2277,11 @@ def skip_task(task_id):
         "ok": True,
         "skips": skips,
         "moved": moved,
-        "reason": f"Moved because you skipped it {skips} times." if moved else None,
+        "reason": (
+            f"Off today's plan. Skipped {skips} times, so it now goes after your other work."
+            if moved
+            else "Off today's plan. It'll be back tomorrow."
+        ),
     }
 
 
@@ -2237,12 +2321,26 @@ def free_gap_datetimes():
     return clipped
 
 
+_BLOCK_SYNC_LOCK = threading.Lock()
+
+
 def sync_blocks_to_calendar():
     """Put today's planned tasks into free time on Google Calendar.
 
     Removes the blocks this app made earlier today, then creates fresh ones.
-    Only events tagged as Between blocks are ever deleted.
+    Only events tagged as Between blocks are ever deleted. One sync at a time, so the
+    startup/30-minute sync and a manual sync can't delete each other's blocks.
     """
+    with _BLOCK_SYNC_LOCK:
+        return _sync_blocks_to_calendar()
+
+
+def google_event_already_gone(exc):
+    """True if Google says the event was already deleted (404/410)."""
+    return str(exc).startswith(("404 ", "410 "))
+
+
+def _sync_blocks_to_calendar():
     config = load_config()
     tz = app_timezone(config)
     calendar_id = config.get("GOOGLE_CALENDAR_ID", "primary")
@@ -2267,7 +2365,11 @@ def sync_blocks_to_calendar():
     )
     removed = 0
     for event in listing.get("items", []):
-        google_calendar_call(token, "DELETE", f"/calendars/{calendar_id}/events/{event['id']}")
+        try:
+            google_calendar_call(token, "DELETE", f"/calendars/{calendar_id}/events/{event['id']}")
+        except ValueError as exc:
+            if not google_event_already_gone(exc):
+                raise
         removed += 1
 
     blocks, _unplaced = multi_day_plan()

@@ -222,7 +222,8 @@ function renderQuestions() {
     </li>`).join("");
 }
 
-// "Not today": counts the skip. After two skips, Between moves the task behind the others.
+// "Not today": takes the task off today's plan (back tomorrow) and counts the skip.
+// After two skips, a non-urgent task also goes behind others with the same deadline.
 async function skipTask(taskId) {
   try {
     const result = await api(`/api/tasks/${taskId}/skip`, { method: "POST", body: "{}" });
