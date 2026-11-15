@@ -1,4 +1,4 @@
-const CACHE_NAME = "between-v3";
+const CACHE_NAME = "between-v4";
 const ASSETS = ["/", "/index.html", "/styles.css", "/app.js", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {
@@ -21,6 +21,8 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
   if (event.request.url.includes("/api/")) return;
+  // Never store a URL that carries the phone token in the offline cache.
+  if (new URL(event.request.url).searchParams.has("token")) return;
   event.respondWith(
     fetch(event.request, { cache: "no-store" })
       .then((response) => {

@@ -15,12 +15,51 @@ const escapeHtml = (value) =>
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
   }[c]));
 
+// Phone token: arrives once as ?token=… in the link, is kept in this browser,
+// and is sent as a header on every API call. It's removed from the address bar
+// right away so it doesn't stay in history or get shared in a screenshot.
+const TOKEN_KEY = "between-token";
+let memoryToken = "";
+
+function saveTokenFromUrl() {
+  const url = new URL(window.location.href);
+  const token = url.searchParams.get("token");
+  if (!token) return;
+  memoryToken = token;
+  try {
+    localStorage.setItem(TOKEN_KEY, token);
+  } catch (err) {
+    // Private mode or blocked storage: keep it for this page only.
+  }
+  url.searchParams.delete("token");
+  window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+}
+
+function phoneToken() {
+  try {
+    return localStorage.getItem(TOKEN_KEY) || memoryToken;
+  } catch (err) {
+    return memoryToken;
+  }
+}
+
+saveTokenFromUrl();
+
 async function api(path, options = {}) {
+  const { headers = {}, ...rest } = options;
+  const token = phoneToken();
   const res = await fetch(path, {
-    headers: { "Content-Type": "application/json" },
-    ...options,
+    ...rest,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { "X-Life-Brain-Token": token } : {}),
+      ...headers,
+    },
   });
   const data = await res.json().catch(() => ({}));
+  if (res.status === 401) {
+    throw new Error("This device needs the Between link with ?token= once. Open it again from your setup link.");
+  }
   if (!res.ok || data.ok === false) {
     throw new Error(data.error || `Request failed (${res.status})`);
   }

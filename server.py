@@ -443,7 +443,7 @@ def load_config():
             config[key.strip()] = value
     # Shell variables only fill gaps; .env always wins, so a stale exported token can't shadow a fresh login.
     for key, value in os.environ.items():
-        if key.startswith(("GOOGLE_", "CANVAS_", "LIFE_BRAIN_", "TIMEZONE")) and not config.get(key):
+        if key.startswith(("GOOGLE_", "CANVAS_", "LIFE_BRAIN_", "BETWEEN_", "TIMEZONE")) and not config.get(key):
             config[key] = value
     return config
 
@@ -476,6 +476,11 @@ def reset_phone_token():
     PHONE_TOKEN_PATH.write_text(token + "\n", encoding="utf-8")
     PHONE_TOKEN_PATH.chmod(0o600)  # readable and writable by you only
     return token
+
+
+def behind_proxy():
+    """True when BETWEEN_BEHIND_PROXY=1 (hosted behind Caddy): then every /api/ request needs the token."""
+    return str(load_config().get("BETWEEN_BEHIND_PROXY", "")).strip().lower() in {"1", "true", "yes"}
 
 
 def is_loopback(address):
@@ -1717,10 +1722,12 @@ class Handler(BaseHTTPRequestHandler):
     def is_authorized(self, parsed):
         if not parsed.path.startswith("/api/"):
             return True
-        if is_loopback(self.client_address[0]):
+        # Behind an HTTPS proxy on the same machine every request looks local,
+        # so local requests are only trusted when there is no proxy.
+        if is_loopback(self.client_address[0]) and not behind_proxy():
             return True
         token = supplied_token(self, parsed)
-        return hmac.compare_digest(token, get_or_create_phone_token())
+        return bool(token) and hmac.compare_digest(token.encode("utf-8"), get_or_create_phone_token().encode("utf-8"))
 
     def require_authorized(self, parsed):
         if self.is_authorized(parsed):
