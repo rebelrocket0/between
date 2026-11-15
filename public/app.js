@@ -243,12 +243,15 @@ async function loadQuestions() {
 let lastQuestionsKey = "";
 
 function renderQuestions() {
-  $("questions-card").classList.toggle("hidden", state.questions.length === 0);
+  const card = $("questions-card");
+  const list = $("questions");
+  if (!card || !list) return;
+  card.classList.toggle("hidden", state.questions.length === 0);
   // Only redraw when the questions actually changed, so typed answers survive refreshes.
   const key = JSON.stringify(state.questions);
   if (key === lastQuestionsKey) return;
   lastQuestionsKey = key;
-  $("questions").innerHTML = state.questions.map((q) => `
+  list.innerHTML = state.questions.map((q) => `
     <li class="item">
       <div class="item-body">
         <div class="item-title">${escapeHtml(q.question)}</div>

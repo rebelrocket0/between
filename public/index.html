@@ -6,7 +6,7 @@
   <title>Between</title>
   <meta name="theme-color" content="#2f5d50">
   <link rel="manifest" href="/manifest.webmanifest">
-  <link rel="stylesheet" href="/styles.css?v=4">
+  <link rel="stylesheet" href="/styles.css?v=5">
 </head>
 <body>
   <header class="topbar">
@@ -93,6 +93,15 @@
       </form>
     </section>
 
+
+    <section class="card hidden" id="questions-card" aria-labelledby="questions-title">
+      <div class="section-head">
+        <h2 id="questions-title">Pip has a question</h2>
+        <span class="muted small">A little clarity goes a long way</span>
+      </div>
+      <ul id="questions" class="list"></ul>
+    </section>
+
     <section class="card" aria-labelledby="tasks-title">
       <div class="section-head">
         <h2 id="tasks-title">Your to-dos</h2>
@@ -113,6 +122,6 @@
     <p id="toast" class="toast hidden" role="status"></p>
   </main>
 
-  <script src="/app.js?v=4"></script>
+  <script src="/app.js?v=5"></script>
 </body>
 </html>
