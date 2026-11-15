@@ -8,6 +8,7 @@ import re
 import secrets
 import socket
 import sqlite3
+import subprocess
 import sys
 from time import monotonic, sleep
 import threading
@@ -495,6 +496,23 @@ def supplied_token(handler, parsed):
     return query_token.strip()
 
 
+def bonjour_name():
+    """The Mac's .local name (System Settings > General > Sharing > Local hostname).
+
+    socket.gethostname() can be a DHCP name from the network (e.g. "mac" on campus Wi-Fi),
+    which is not what other devices can reach as <name>.local.
+    """
+    try:
+        name = subprocess.run(
+            ["scutil", "--get", "LocalHostName"], capture_output=True, text=True, timeout=3
+        ).stdout.strip()
+        if name:
+            return name
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return socket.gethostname().split(".")[0]
+
+
 def local_network_urls(port, token):
     urls = []
     try:
@@ -505,7 +523,7 @@ def local_network_urls(port, token):
                 urls.append(f"http://{primary_ip}:{port}/?token={token}")
     except OSError:
         pass
-    hostname = socket.gethostname().split(".")[0]
+    hostname = bonjour_name()
     if hostname:
         urls.append(f"http://{hostname}.local:{port}/?token={token}")
     try:
