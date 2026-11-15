@@ -8,5 +8,5 @@ source deploy/common.sh "${1:-}"
 
 echo "Setting up ubuntu@$HOST ..."
 remote "mkdir -p /tmp/between-setup"
-scp "${SSH_OPTS[@]}" -q deploy/server-setup.sh deploy/duckdns-update.sh "ubuntu@$HOST:/tmp/between-setup/"
+scp "${SSH_OPTS[@]}" -q deploy/server-setup.sh deploy/duckdns-update.sh deploy/duckdns-set-token.sh "ubuntu@$HOST:/tmp/between-setup/"
 ssh -t "${SSH_OPTS[@]}" "ubuntu@$HOST" "bash /tmp/between-setup/server-setup.sh"

@@ -47,14 +47,20 @@ fi
 chmod 600 "$APP_DIR/.env"
 
 echo "== 3/4 DuckDNS token"
+sudo install -m 755 /tmp/between-setup/duckdns-update.sh /usr/local/bin/duckdns-update
+sudo install -m 755 /tmp/between-setup/duckdns-set-token.sh /usr/local/bin/duckdns-set-token
 mkdir -p "$DUCKDNS_DIR"
 chmod 700 "$DUCKDNS_DIR"
+TOKEN_SHAPE='^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
 if [ ! -s "$DUCKDNS_DIR/token" ]; then
-  echo "Copy your token from https://www.duckdns.org (top of the page, after you sign in)."
+  echo "Copy your token from https://www.duckdns.org (the 'token' line at the top, after you sign in)."
   read -r -s -p "Paste or type your DuckDNS token here (it stays hidden), then press Return: " token
   echo
-  if [ -z "$token" ]; then
-    echo "No token entered. Run this script again." >&2
+  token=$(printf '%s' "$token" | tr -d ' \t\r\n')
+  if ! [[ "$token" =~ $TOKEN_SHAPE ]]; then
+    echo "That isn't a DuckDNS token (got ${#token} characters; want 36 like xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)." >&2
+    echo "Nothing saved. If pasting into a hidden prompt keeps failing, use the file method instead:" >&2
+    echo "  ssh in, then:  umask 077 && nano ~/duckdns-token.txt   (paste, save)   then:  duckdns-set-token" >&2
     exit 1
   fi
   (umask 077; printf '%s' "$token" > "$DUCKDNS_DIR/token")
@@ -66,7 +72,6 @@ fi
 chmod 600 "$DUCKDNS_DIR/token"
 
 echo "== 4/4 Point pipbetween.duckdns.org here"
-sudo install -m 755 /tmp/between-setup/duckdns-update.sh /usr/local/bin/duckdns-update
 if /usr/local/bin/duckdns-update; then
   echo "DuckDNS says OK."
 else
