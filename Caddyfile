@@ -1,0 +1,14 @@
+# Caddy gets and renews the HTTPS certificate for $DOMAIN automatically.
+# Ports 80 and 443 must be open and the DuckDNS name must point at this server.
+# No access log is configured, so ?token= links are not written to disk.
+{$DOMAIN} {
+	encode gzip
+	reverse_proxy between:8765
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		# Don't send the page address (which may briefly hold ?token=) to other sites.
+		Referrer-Policy "no-referrer"
+		-Server
+	}
+}

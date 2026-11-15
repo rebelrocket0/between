@@ -1,0 +1,40 @@
+# Between on a server: the Python app behind Caddy (automatic HTTPS).
+#
+#   docker compose up -d --build
+#
+# Needs, next to this file on the server:
+#   .env   app secrets (chmod 600, created by hand on the server, never from git)
+#   data/  tasks database + phone token; survives restarts and rebuilds
+services:
+  between:
+    build: .
+    restart: unless-stopped
+    environment:
+      # Every request reaches the app through Caddy, so none is trusted as "local":
+      # every /api/ call needs the phone token.
+      BETWEEN_BEHIND_PROXY: "1"
+    volumes:
+      - ./data:/app/data
+      - ./.env:/app/.env:ro
+    # Reachable only from Caddy on the internal network, not from the internet.
+    expose:
+      - "8765"
+
+  caddy:
+    image: caddy:2.8.4
+    restart: unless-stopped
+    depends_on:
+      - between
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:-pipbetween.duckdns.org}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data      # HTTPS certificates; keep so Let's Encrypt isn't asked again
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

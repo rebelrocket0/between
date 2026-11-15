@@ -1,0 +1,17 @@
+# Never bake secrets or personal data into the image.
+.env
+.env.*
+!.env.example
+data/
+client_secret*.json
+*client_secret*.json
+credentials.json
+token.json
+
+.git/
+.claude/
+__pycache__/
+*.pyc
+.DS_Store
+tests/
+docs/
